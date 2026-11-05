@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v11-fixed-landmarks">
+<meta name="game-build" content="v12-worldmap-graphics">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -25,6 +25,7 @@ addEventListener('resize',resize);resize();
 const WORLD=4200,GROUND=WORLD-90,MAXALT=1200,PLANE_Y=170,START_Y=PLANE_Y-16,BONUS_ALT=350;
 const OL='#4a3a33';
 const rnd=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),easeOut=p=>1-(1-p)*(1-p);
+function riverWorldX(y){return W*(.52+.3*Math.sin((y-GROUND)/WORLD*4+1.45)+.045*Math.sin(y/WORLD*12))}
 const CHARS=[
   {name:'토토',kind:'bunny',body:'#fff4f0',ear:'#ffc4d0',chute:['#ff8fab','#fff3b0'],trait:'민첩 조종',steer:1.22,wind:0.92,fall:0.96,flare:1.08},
   {name:'삐약',kind:'chick',body:'#ffe27a',ear:'#ffb347',chute:['#7ed6a7','#ffffff'],trait:'가벼운 낙하',steer:1,wind:1.18,fall:0.9,flare:1},
@@ -89,7 +90,24 @@ function newJump(){
   P={x:plane.x,y:START_Y,vx:0,vy:0,ch,state:'plane',chute:0,openAlt:null,stars:0,rot:0,bank:0,spin:0,flare:0,flareGood:false,gustPts:0,landT:0,result:null};
   stars=[];for(let i=0;i<10+s*2;i++)stars.push({x:rnd(30,W-30),y:rnd(600,GROUND-500),got:false});
   birds=[];if(s>=2)for(let i=0;i<Math.min(s,6);i++)birds.push({x:Math.random()*W,y:rnd(900,GROUND-500),vx:rnd(60,120)*(Math.random()<.5?-1:1),hit:false});
-  if(!scenery.length){for(let i=0;i<54;i++){let kind,x,y,size;if(i<10){kind='mountain';x=rnd(W*.04,W*.96);y=rnd(GROUND-2700,GROUND-1500);size=rnd(1.05,1.65)}else if(i<27){kind='building';x=rnd(W*.48,W*.94);y=rnd(GROUND-1550,GROUND-260);size=rnd(1.05,1.65)}else if(i<39){kind='house';x=rnd(W*.06,W*.62);y=rnd(GROUND-1800,GROUND-180);size=rnd(.75,1.2)}else{kind='tree';x=rnd(W*.04,W*.96);y=rnd(GROUND-2100,GROUND-120);size=rnd(.7,1.35)}scenery.push({kind,x,y,size,tone:i%3})}}
+  if(!scenery.length){
+    // 도시의 구역은 한 번 생성한 뒤 모든 착지 코스에서 같은 월드 좌표를 공유한다.
+    const add=(kind,x,y,size,tone=0)=>scenery.push({kind,x,y,size,tone});
+    for(let i=0;i<12;i++){const y=GROUND-2350+i*104;add('mountain',W*(.02+(i%4)*.31),y,rnd(1.05,1.55),i%3)}
+    for(let row=0;row<7;row++)for(let col=0;col<5;col++){
+      const y=GROUND-1550+row*188+(col%2)*42;
+      const x=W*(.62+col*.09+rnd(-.025,.025));
+      if(Math.abs(x/W-(.52+.16*Math.sin(y/WORLD*5)+.07*Math.sin(y/WORLD*12)))>.12)add('building',x,y,rnd(1.0,1.38),(row+col)%3);
+    }
+    for(let row=0;row<7;row++)for(let col=0;col<5;col++){
+      const y=GROUND-1480+row*205+(col%2)*30,x=W*(.035+col*.073+rnd(-.018,.018));
+      add('house',x,y,rnd(.78,1.08),(row+col)%3);
+    }
+    for(let i=0;i<72;i++){
+      const y=rnd(GROUND-2150,GROUND-70),x=W*rnd(.015,.985);
+      if(Math.abs(x-riverWorldX(y))>W*.12 && !(Math.abs(x/W-.22)<.12&&y>GROUND-520))add('tree',x,y,rnd(.72,1.18),i%3);
+    }
+  }
   clouds=[];for(let i=0;i<16;i++)clouds.push({x:Math.random()*W,y:rnd(260,GROUND-600),s:rnd(.6,1.4)});
   camY=0;G.phase='play';
 }
@@ -241,29 +259,33 @@ function drawBird(b,sy){ctx.save();ctx.translate(b.x,sy);ctx.scale(b.vx>0?1:-1,1
 // 낙하산이 펴진 뒤에는 지면을 향해 내려다보는 추적 카메라로 전환
 function mapProject(wx,wy){
   const distance=Math.max(0,wy-P.y),depth=distance/(distance+900);
-  return {x:clamp(W/2+(wx-P.x)*(.32+.68*(1-depth)),18,W-18),y:H*.42+depth*H*.51,scale:1.3-.8*depth,depth};
+  return {x:W/2+(wx-P.x)*(.32+.68*(1-depth)),y:H*.42+depth*H*.51,scale:1.3-.8*depth,depth};
+}
+function projectedPath(samples,color,width,alpha=1){
+  ctx.save();ctx.globalAlpha=alpha;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=color;
+  for(let i=1;i<samples.length;i++){
+    const a=mapProject(samples[i-1][0],samples[i-1][1]),b=mapProject(samples[i][0],samples[i][1]);
+    ctx.lineWidth=width*(a.scale+b.scale)/2;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  }ctx.restore();
 }
 function drawAerialMap(amount=1){
   ctx.save();ctx.globalAlpha=amount;
-  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#c7e9a8');g.addColorStop(.5,'#9bd879');g.addColorStop(1,'#70bf68');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  // Camera follows the bear. Distant ridges and nearby roads slide at different rates; the POIs below use world coordinates.
-  const mapPan=W/2-P.x;
-  ctx.save();ctx.translate(mapPan*.32,0);ctx.globalAlpha=.52;for(let i=0;i<6;i++){const x=W*(i/5),base=H*(.18+(i%2)*.035),peak=H*(.04+(i%3)*.018);ctx.beginPath();ctx.moveTo(x-W*.12,base);ctx.lineTo(x,peak);ctx.lineTo(x+W*.14,base);ctx.closePath();ctx.fillStyle=['#9ab49a','#87a88c','#a8bf9a'][i%3];ctx.fill()}ctx.restore();
-  // A road and the river wind through every district, so each landing stays in one fixed city map.
-  const phase=P.y*.0011;
-  ctx.save();ctx.translate(mapPan*.48,0);ctx.lineCap='round';ctx.lineJoin='round';
-  for(const [width,color] of [[W*.29,'#d9e6a8'],[W*.23,'#4ebdcc'],[W*.17,'#80d9dd']]){ctx.beginPath();for(let y=-30;y<=H+40;y+=20){const x=W*.51+Math.sin(y/H*4.6+phase)*W*.25+Math.sin(y/H*2.1-phase*.5)*W*.07;if(y===-30)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke()}
-  ctx.save();ctx.globalAlpha=.8;ctx.strokeStyle='#ead9a9';ctx.lineWidth=W*.055;ctx.beginPath();for(let y=-20;y<=H+30;y+=24){const x=W*.18+Math.sin(y/H*3.8+phase*.7)*W*.14;if(y===-20)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;ctx.setLineDash([10,9]);ctx.stroke();ctx.restore();
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#ccebb0');g.addColorStop(.45,'#9bda83');g.addColorStop(1,'#78c96b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // River and road are world paths: they no longer scroll at a different rate from buildings.
+  const river=[],road=[];for(let y=START_Y;y<=GROUND;y+=70){river.push([riverWorldX(y),y]);road.push([W*(.17+.095*Math.sin(y/WORLD*4.2+1.1)),y])}
+  projectedPath(river,'#b5d995',W*.17,.92);projectedPath(river,'#43b9cf',W*.135,.98);projectedPath(river,'#82dce0',W*.085,.96);
+  projectedPath(road,'#d9c994',W*.045,.92);projectedPath(road,'#f5edce',W*.032,.96);
+  // Green neighborhood clearings and the school grounds stay attached to their map positions.
+  const field=mapProject(W*.22,GROUND-22);ctx.save();ctx.translate(field.x,field.y);ctx.scale(field.scale,field.scale);ell(0,0,W*.145,30,'#71c76b','#5fac58');rr(-W*.115,-19,W*.23,38,19);ctx.fillStyle='#86d47a';ctx.fill();ctx.strokeStyle='#f4c2a0';ctx.lineWidth=3;ctx.stroke();for(let k=0;k<3;k++){ctx.beginPath();ctx.ellipse(0,0,W*(.065+k*.022),8+k*6,0,0,Math.PI*2);ctx.stroke()}ctx.fillStyle='#f2dfb4';rr(-W*.022,-9,W*.044,18,3);ctx.fill();ctx.restore();
   // School track sits in the western neighborhood; the river buoy is in a widened bend.
-  const school=mapProject(W*.22,GROUND-22),lake=mapProject(W*.79,GROUND-250);
-  ctx.save();ctx.globalAlpha=.82;ctx.fillStyle='#78c979';ell(school.x,school.y,W*.13,23,'#72c46a');ctx.strokeStyle='#e89078';ctx.lineWidth=4;for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(school.x,school.y,W*(.085+i*.018),12+i*3,0,0,Math.PI*2);ctx.stroke()}ctx.fillStyle='#9cdd82';ctx.fillRect(school.x-W*.04,school.y-5,W*.08,10);ctx.restore();
+  const lake=mapProject(W*.79,GROUND-250);
   ctx.save();ctx.globalAlpha=.88;ell(lake.x,lake.y,W*.17,30,'#31b6ca','#d8e5a4');ell(lake.x,lake.y,W*.125,21,'#61cbd3');for(let i=0;i<5;i++){const x=lake.x-W*.13+i*W*.065;ell(x,lake.y+Math.sin(i*2)*20,6,3,'#f4e8ba')}ctx.restore();
   // Apartment blocks, houses and tree clusters are grouped by district rather than scattered at random.
   for(const item of scenery){if(item.y<P.y+35)continue;const p=mapProject(item.x,item.y);if(p.y<-55||p.y>H+65)continue;const z=item.size*(.35+1.1*(1-p.depth));ctx.save();ctx.translate(p.x,p.y);ctx.scale(z,z);
     if(item.kind==='mountain'){ell(0,8,24,8,'rgba(45,94,57,.2)');ctx.beginPath();ctx.moveTo(-26,8);ctx.lineTo(-8,-24);ctx.lineTo(2,-10);ctx.lineTo(14,-31);ctx.lineTo(29,8);ctx.closePath();ctx.fillStyle=['#8aab83','#9cae91','#7f9d7b'][item.tone];ctx.fill();ctx.strokeStyle='rgba(70,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();ctx.beginPath();ctx.moveTo(-8,-24);ctx.lineTo(-3,-16);ctx.lineTo(1,-19);ctx.lineTo(7,-9);ctx.lineTo(2,-10);ctx.closePath();ctx.fillStyle='#f7f3df';ctx.fill()}
-    else if(item.kind==='building'){ell(2,9,20,7,'rgba(45,94,57,.2)');rr(-14,-30,28,40,3);ctx.fillStyle=['#f5d7ae','#c6e1ee','#f3c9cb'][item.tone];ctx.fill();ctx.strokeStyle='rgba(85,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();for(let yy=-24;yy<2;yy+=9)for(let xx=-9;xx<9;xx+=10){rr(xx-2,yy,4,5,1);ctx.fillStyle='#8bd2dd';ctx.fill()}}
+    else if(item.kind==='building'){ell(2,11,21,7,'rgba(45,94,57,.22)');rr(-15,-32,30,44,4);ctx.fillStyle=['#f5d7ae','#c6e1ee','#f3c9cb'][item.tone];ctx.fill();ctx.strokeStyle='rgba(85,91,67,.4)';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle=['#df8b77','#7898bb','#cc879b'][item.tone];ctx.beginPath();ctx.moveTo(-18,-31);ctx.lineTo(0,-39);ctx.lineTo(18,-31);ctx.closePath();ctx.fill();for(let yy=-24;yy<3;yy+=9)for(let xx=-9;xx<9;xx+=10){rr(xx-2,yy,4.5,5,1);ctx.fillStyle='#91d7df';ctx.fill();ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillRect(xx-1.5,yy+.5,1,1.5)}}
     else if(item.kind==='house'){ell(2,9,19,7,'rgba(45,94,57,.18)');rr(-16,-6,32,20,3);ctx.fillStyle=['#fff0d5','#f7d4bd','#dce8ff'][item.tone];ctx.fill();ctx.strokeStyle='rgba(85,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();ctx.beginPath();ctx.moveTo(-20,-5);ctx.lineTo(0,-19);ctx.lineTo(20,-5);ctx.closePath();ctx.fillStyle=['#df8a70','#bd7896','#8498ca'][item.tone];ctx.fill();ctx.stroke()}
-    else{ell(0,8,14,6,'rgba(45,94,57,.18)');ell(0,-1,11,12,'#398b55','#2f7549');ell(-7,-6,8,9,'#58ad64');ell(6,-8,8,9,'#70bf68');ell(0,-13,7,8,'#83ce74')}
+    else{ell(0,9,15,6,'rgba(45,94,57,.2)');ell(0,0,11,12,'#398b55','#2f7549');ell(-7,-5,8,9,'#58ad64');ell(6,-7,8,9,'#70bf68');ell(0,-12,7,8,'#83ce74');ell(-2,-14,3,3,'rgba(255,255,255,.42)')}
     ctx.restore();
   }
   // Forecast gust bands are placed over the shared map and move toward the player with perspective.
