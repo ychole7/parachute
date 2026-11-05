@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v22-separated-sprites">
+<meta name="game-build" content="v23-harness-alignment">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -264,13 +264,15 @@ function drawParachuteRig(x,y,rot){
   const canopyW=Math.min(W*.96,H*.56*canopyAspect)*(gear?.wing||1),canopyH=canopyW/canopyAspect;
   const bearAspect=bearArt.naturalWidth/bearArt.naturalHeight;
   const bearW=Math.min(W*.62,H*.36*bearAspect),bearH=bearW/bearAspect;
-  const sway=clamp(P.vx/350,-1,1),canopyX=x+Math.sin(t*1.35)*W*.012+sway*W*.018;
-  const bearX=x+sway*W*.012,bearTop=y-bearH*.56,canopyTop=y-H*.47;
+  const sway=clamp(P.vx/350,-1,1),bearX=x+sway*W*.012;
+  const bearTop=y-bearH*.56,handY=bearTop+bearH*.365;
   const inflate=.90+.10*easeOut(P.chute),cW=canopyW,cH=canopyH*inflate;
-  // 캐노피와 곰돌이를 따로 그려 바람에 흔들리는 폭을 다르게 준다.
+  const canopyX=bearX+Math.sin(t*1.35)*W*.003+sway*W*.002;
+  // 손이 캐노피 고리를 잡도록 캐노피 높이를 손 위치에 맞춘다.
+  const canopyTop=handY-cH*.94;
   ctx.save();ctx.translate(canopyX,canopyTop);ctx.rotate(clamp(rot*.55+Math.sin(t*1.2)*.018,-.11,.11));ctx.drawImage(canopyArt,-cW/2,0,cW,cH);ctx.restore();
   // 캐노피 고리에서 곰돌이 양손까지 이어지는 연결 줄
-  const loopY=canopyTop+cH*.94,loopX=cW*.205,handY=bearTop+bearH*.365,handX=bearW*.34;
+  const loopY=canopyTop+cH*.94,loopX=cW*.205,handX=bearW*.34;
   ctx.save();ctx.strokeStyle='rgba(104,76,57,.78)';ctx.lineWidth=Math.max(1.5,W*.006);ctx.lineCap='round';
   for(const side of[-1,1]){ctx.beginPath();ctx.moveTo(canopyX+side*loopX,loopY);ctx.quadraticCurveTo((canopyX+bearX)/2+side*W*.02,(loopY+handY)/2,bearX+side*handX,handY);ctx.stroke()}
   ctx.restore();
@@ -416,8 +418,8 @@ function drawButton(){
     const a=alt(P.y),ok=a<110&&a>12;
     const dy=input.y-input.startY,dx=input.x-input.startX;
     const hint=wind.active&&!wind.active.mastered?(input.down&&Math.sign(dx)===-wind.active.dir?'바람을 잘 잡았어요!':'돌풍 반대쪽으로 끌어요!'):input.down&&dy>22?'브레이크 당기는 중!':ok&&P.flare<.15?'착지 준비! 아래로 당겨요':input.down&&Math.abs(dx)>12?(dx<0?'왼쪽으로 기울어요':'오른쪽으로 기울어요'):ok?'지금 아래로 당겨 속도 줄여요':'좌우로 크게 끌어 조종해요';
-    txt(hint,W/2,H*.72,15,ok||dy>22?'#ff5c8a':'#4a3a33');
-    if(ok){rr(W/2-44,H*.75,88,7,4);ctx.fillStyle='rgba(255,255,255,.8)';ctx.fill();rr(W/2-44,H*.75,88*P.flare,7,4);ctx.fillStyle='#ff8fab';ctx.fill()}
+    txt(hint,W/2,H*.82,15,ok||dy>22?'#ff5c8a':'#4a3a33');
+    if(ok){rr(W/2-44,H*.85,88,7,4);ctx.fillStyle='rgba(255,255,255,.8)';ctx.fill();rr(W/2-44,H*.85,88*P.flare,7,4);ctx.fillStyle='#ff8fab';ctx.fill()}
     return;
   }
   if(P.state!=='fall')return;const bx=58,by=H*.75,pulse=1+Math.sin(t*8)*.04;
