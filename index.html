@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v7-flight-conditions">
+<meta name="game-build" content="v8-landing-route">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -34,6 +34,11 @@ const PARACHUTES=[
   {name:'밸런스 캐노피',desc:'조종과 속도가 고른 기본형',control:1,wind:1,fall:1,flare:1,open:1,wing:1,panels:6},
   {name:'훈련용 캐노피',desc:'천천히 내려와 착지하기 쉬워요',control:1.18,wind:0.78,fall:0.88,flare:1.18,open:1.12,wing:1.08,panels:8},
   {name:'스피드 캐노피',desc:'빠르고 민첩하지만 바람에 약해요',control:1.08,wind:1.22,fall:1.12,flare:0.84,open:0.86,wing:0.88,panels:5}
+];
+const SITES=[
+  {name:'호수 부표',icon:'◉',kind:'lake',target:0.7,wind:1.34,moving:true},
+  {name:'아파트 옥상',icon:'⌂',kind:'roof',target:0.66,wind:1.12,moving:false},
+  {name:'초등학교 운동장',icon:'⚑',kind:'school',target:1,wind:0.82,moving:false}
 ];
 const WEATHERS=[
   {name:'맑음',icon:'☀',wind:0.88,fall:1,dive:0.96,flare:1,open:0.96,gust:0.72,kind:'clear'},
@@ -65,25 +70,25 @@ function dangerThreshold(){if(!weather||!gear||!P)return DANGER_ALT;const factor
 
 // ---------- 상태 ----------
 let G={stage:1,jump:0,total:0,phase:'title'};
-let P,plane,target,wind,weather,gear,gearIndex=0,stars=[],birds=[],clouds=[],parts=[],popups=[],scenery=[];
+let P,plane,target,wind,weather,gear,site,gearIndex=0,stars=[],birds=[],clouds=[],parts=[],popups=[],scenery=[];
 let camY=0,t=0;
 const input={down:false,x:0,y:0,startX:0,startY:0,flare:0,left:false,right:false};
 for(let i=0;i<8;i++)clouds.push({x:Math.random()*400,y:Math.random()*800,s:rnd(.6,1.3)});
 
 function newJump(){
   const s=G.stage,ch=CHARS[G.jump%3];
-  gear=PARACHUTES[gearIndex];weather=WEATHERS[Math.floor(Math.random()*WEATHERS.length)];
+  gear=PARACHUTES[gearIndex];weather=WEATHERS[Math.floor(Math.random()*WEATHERS.length)];site=SITES[G.jump%SITES.length];
   const dir=Math.random()<.5?1:-1;
   plane={x:dir>0?-90:W+90,y:PLANE_Y,vx:dir*(150+s*12)};
-  const baseWind=(Math.random()<.5?-1:1)*Math.min(20+s*18,130)*rnd(.4,1);
-  wind={v:baseWind,current:baseWind,active:null,gusts:[{alt:520,dir:Math.random()<.5?-1:1,power:48*weather.gust,width:105,charge:0,mastered:false},{alt:270,dir:Math.random()<.5?-1:1,power:62*weather.gust,width:82,charge:0,mastered:false}]};
-  const tw=Math.max(150-s*12,70);
-  target={x:W*rnd(.25,.75),w:tw,vx:s>=2?(35+s*8)*(Math.random()<.5?-1:1):0};
+  const baseWind=(Math.random()<.5?-1:1)*Math.min(32+s*17,115)*rnd(.75,1.15)*site.wind;
+  wind={v:baseWind,current:baseWind,phase:rnd(0,Math.PI*2),active:null,gusts:[{alt:520,dir:Math.random()<.5?-1:1,power:48*weather.gust,width:105,charge:0,mastered:false},{alt:270,dir:Math.random()<.5?-1:1,power:62*weather.gust,width:82,charge:0,mastered:false}]};
+  const tw=clamp(Math.max(150-(s-1)*11,76)*site.target,56,160);
+  target={x:W*rnd(.16,.84),w:tw,vx:(site.moving||s>=3)?(site.moving?rnd(20,38):35+s*7)*(Math.random()<.5?-1:1):0};
   P={x:plane.x,y:START_Y,vx:0,vy:0,ch,state:'plane',chute:0,openAlt:null,stars:0,rot:0,bank:0,spin:0,flare:0,flareGood:false,gustPts:0,landT:0,result:null};
   stars=[];for(let i=0;i<10+s*2;i++)stars.push({x:rnd(30,W-30),y:rnd(600,GROUND-500),got:false});
   birds=[];if(s>=2)for(let i=0;i<Math.min(s,6);i++)birds.push({x:Math.random()*W,y:rnd(900,GROUND-500),vx:rnd(60,120)*(Math.random()<.5?-1:1),hit:false});
   scenery=[];
-  for(let i=0;i<42;i++){const n=i%7;scenery.push({kind:n===0?'house':n===1?'mountain':n===2?'building':'tree',x:rnd(18,W-18),y:rnd(220,GROUND-130),size:rnd(.65,1.2),tone:i%3})}
+  for(let i=0;i<42;i++){const n=i%7;scenery.push({kind:site.kind==='lake'?'island':site.kind==='roof'?'building':n===0?'house':n===1?'mountain':n===2?'building':'tree',x:rnd(18,W-18),y:rnd(220,GROUND-130),size:rnd(site.kind==='roof'?1.05:.65,site.kind==='roof'?1.65:1.2),tone:i%3})}
   clouds=[];for(let i=0;i<16;i++)clouds.push({x:Math.random()*W,y:rnd(260,GROUND-600),s:rnd(.6,1.4)});
   camY=0;G.phase='play';
 }
@@ -137,14 +142,14 @@ function update(dt){
     if(P.state==='fall'){
       const dive=weather.dive*P.ch.fall;
       P.vy=Math.min(P.vy+950*dive*dt,680*dive);
-      P.vx+=(steer*950*P.ch.steer+wind.v*.5*weather.wind*P.ch.wind-P.vx*1.6)*dt;P.vx=clamp(P.vx,-290,290);
+      P.vx+=(steer*1050*P.ch.steer+wind.v*.55*weather.wind*site.wind*P.ch.wind-P.vx*1.55)*dt;P.vx=clamp(P.vx,-330,330);
       P.bank+=(steer*P.ch.steer-P.bank)*Math.min(1,dt*8);
     }else{
       P.chute=Math.min(1,P.chute+dt/(.6*gear.open*weather.open));const e=easeOut(P.chute);
       const pullDown=input.down?clamp((input.y-input.startY-22)/48,0,1):0;
-      const currentAlt=alt(P.y);wind.current=wind.v;wind.active=null;
+      const currentAlt=alt(P.y);wind.current=wind.v+Math.sin(t*1.65+wind.phase)*14;wind.active=null;
       const gust=wind.gusts.find(g=>Math.abs(currentAlt-g.alt)<g.width);
-      if(gust){const strength=1-Math.abs(currentAlt-gust.alt)/gust.width;wind.active=gust;wind.current=wind.v+gust.dir*gust.power*strength;
+      if(gust){const strength=1-Math.abs(currentAlt-gust.alt)/gust.width;wind.active=gust;wind.current+=gust.dir*gust.power*strength;
         if(!gust.entered){gust.entered=true;pop('돌풍 구간! 반대로 조종해요',W/2,H*.42-82,'#4f87e8',19);sfx(420,.12,'triangle',.1,120)}
         const fighting=Math.sign(steer)===-gust.dir&&Math.abs(steer)>.35;gust.charge=fighting?gust.charge+dt:Math.max(0,gust.charge-dt*.55);
         if(gust.charge>.42&&!gust.mastered){gust.mastered=true;P.gustPts+=25;pop('바람 읽기! +25',W/2,H*.42-48,'#ffb52e',22);burst(P.x,P.y,'#fff2a8',12);sfx(720,.16,'triangle',.13,260);buzz(18)}
@@ -154,7 +159,7 @@ function update(dt){
       const pilotBrake=gear.flare*weather.flare*P.ch.flare;
       const tv=(680-585*e-72*P.flare*pilotBrake)*weather.fall*gear.fall*P.ch.fall;P.vy+=(tv-P.vy)*Math.min(1,(3+5*P.chute+2*P.flare)*dt);
       P.bank+=(steer*P.ch.steer-P.bank)*Math.min(1,dt*(steer===0?2.8:4.5)*gear.control);
-      P.vx+=(P.bank*610*gear.control+wind.current*1.3*e*weather.wind*gear.wind*P.ch.wind-P.vx*1.35)*dt;P.vx=clamp(P.vx,-240,240);
+      P.vx+=(P.bank*820*gear.control+wind.current*1.55*e*weather.wind*site.wind*gear.wind*P.ch.wind-P.vx*1.15)*dt;P.vx=clamp(P.vx,-350,350);
     }
     P.spin*=Math.pow(.05,dt);
     P.rot+=((P.state==='fall'?steer*.35:P.bank*.3+P.vx/650)-P.rot)*Math.min(1,5*dt);
@@ -204,7 +209,7 @@ function drawChar(x,y,ch,o={}){
 }
 function drawChute(x,y,p,ch,rot,scale=1){
   if(p<=0)return;const e=easeOut(p);ctx.save();ctx.translate(x,y);ctx.rotate(rot*.6);
-  ctx.scale(scale*1.5*(gear?.wing||1),scale*.9);const R=58*e,cy=-28-58*e;
+  const pull=P?.state==='chute'?P.flare:0;ctx.scale(scale*1.5*(gear?.wing||1)*(1-.1*pull),scale*.9*(1+.08*pull));const R=58*e,cy=-28-58*e;
   ctx.strokeStyle='rgba(74,58,51,.55)';ctx.lineWidth=1.2;
   for(const k of[-1,-.45,.45,1]){ctx.beginPath();ctx.moveTo(Math.sign(k)*15,-26);ctx.lineTo(k*R,cy);ctx.stroke()}
   const n=gear?.panels||6;
@@ -241,25 +246,26 @@ function mapProject(wx,wy){
 }
 function drawAerialMap(amount=1){
   ctx.save();ctx.globalAlpha=amount;
-  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#b7df9d');g.addColorStop(.55,'#8bd275');g.addColorStop(1,'#66bd68');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,0,0,H);
+  if(site.kind==='lake'){g.addColorStop(0,'#79d9eb');g.addColorStop(.55,'#32b9d0');g.addColorStop(1,'#168cac')}
+  else if(site.kind==='roof'){g.addColorStop(0,'#d7e0e2');g.addColorStop(.55,'#adbcc1');g.addColorStop(1,'#89999e')}
+  else{g.addColorStop(0,'#b7df9d');g.addColorStop(.55,'#8bd275');g.addColorStop(1,'#66bd68')}ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  if(site.kind==='lake'){ctx.save();ctx.globalAlpha=.22;ctx.strokeStyle='#e2fbff';ctx.lineWidth=2;for(let i=0;i<18;i++){const y=(i*67+t*18)%H,x=(i*113)%W;ctx.beginPath();ctx.ellipse(x,y,18+(i%4)*8,3,0,0,Math.PI*2);ctx.stroke()}ctx.restore();}
+  if(site.kind==='roof'){ctx.save();ctx.globalAlpha=.28;ctx.strokeStyle='#f6f5ef';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(W*.08,H*.18);ctx.lineTo(W*.9,H*.82);ctx.moveTo(W*.95,H*.2);ctx.lineTo(W*.08,H*.72);ctx.stroke();ctx.globalAlpha=.32;ctx.lineWidth=2;for(let i=0;i<7;i++){const x=(i%3)*W*.42+W*.08,y=(Math.floor(i/3))*H*.3+H*.12;rr(x,y,W*.24,H*.16,5);ctx.fillStyle=['#9eafb2','#bac8ca','#8d9ea3'][i%3];ctx.fill();ctx.strokeStyle='rgba(255,255,255,.5)';ctx.stroke()}ctx.restore();}
   // 밭과 숲이 흐르며 화면 아래로 다가오도록 그려 지면의 깊이를 만든다.
-  for(let i=0;i<7;i++){
+  if(site.kind==='school')for(let i=0;i<7;i++){
     const y=H*(i/6),scale=.55+i*.12,x=(i%2?W*.18:W*.82)+Math.sin(i*2+P.y*.00045)*W*.08;
     ctx.save();ctx.globalAlpha=.12;ell(x,y,W*.24*scale,H*.055*scale,i%2?'#f8e7a8':'#318b55');ctx.restore();
   }
   // 돌풍 고도를 미리 보여줘, 바람을 읽고 방향을 준비할 수 있게 한다.
   if(P.state==='chute'&&wind.gusts){for(const gust of wind.gusts){if(gust.entered)continue;const wy=GROUND-22-gust.alt/MAXALT*(GROUND-22-START_Y);if(wy<=P.y)continue;const q=mapProject(W/2,wy);if(q.y<72||q.y>H*.88)continue;ctx.save();ctx.globalAlpha=.28;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.setLineDash([8,8]);ctx.beginPath();ctx.moveTo(W*.16,q.y);ctx.quadraticCurveTo(W*.5,q.y+Math.sin(t*2+gust.alt)*10,W*.84,q.y);ctx.stroke();ctx.setLineDash([]);for(let i=0;i<3;i++){const ax=W*(.34+i*.16),ay=q.y+Math.sin(t*2+i)*4;ctx.save();ctx.translate(ax,ay);ctx.rotate(gust.dir>0?0:Math.PI);ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(-3,-5);ctx.lineTo(-3,5);ctx.closePath();ctx.fill();ctx.restore()}txt('돌풍 예상',W*.5,q.y-13,11,'#fff','center',false);ctx.restore()}}
-  // 강줄기는 지형의 방향을 읽고 착지 경로를 고르는 기준점
-  const phase=P.y*.0011;
-  ctx.lineCap='round';ctx.lineJoin='round';
-  for(const [width,color] of [[W*.27,'#d5e7a2'],[W*.21,'#55c7d1'],[W*.16,'#79dce2']]){
-    ctx.beginPath();for(let y=-30;y<=H+40;y+=24){const x=W*.5+Math.sin(y/H*5+phase)*W*.25+Math.sin(y/H*2.2-phase*.5)*W*.08;if(y===-30)ctx.moveTo(x,y);else ctx.lineTo(x,y)}
-    ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();
-  }
+  // 학교로 향할 때는 강과 운동장 트랙이 지면의 방향을 알려준다.
+  if(site.kind==='school'){const phase=P.y*.0011;ctx.lineCap='round';ctx.lineJoin='round';for(const [width,color] of [[W*.25,'#d5e7a2'],[W*.19,'#55c7d1'],[W*.14,'#79dce2']]){ctx.beginPath();for(let y=-30;y<=H+40;y+=24){const x=W*.5+Math.sin(y/H*5+phase)*W*.25+Math.sin(y/H*2.2-phase*.5)*W*.08;if(y===-30)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke()}}
   for(const item of scenery){
     if(item.y<P.y+35)continue;const p=mapProject(item.x,item.y);if(p.y<-50||p.y>H+55)continue;
     const z=item.size*(.35+1.1*(1-p.depth));ctx.save();ctx.translate(p.x,p.y);ctx.scale(z,z);
-    if(item.kind==='mountain'){
+    if(item.kind==='island'){ell(0,7,28,10,'rgba(0,67,94,.22)');ell(0,0,24,8,'#dacb9d','#9a9274');ell(-4,-3,14,7,'#73b96b');ell(7,-4,8,6,'#8acb72')}
+    else if(item.kind==='mountain'){
       ell(0,8,24,8,'rgba(45,94,57,.2)');ctx.beginPath();ctx.moveTo(-26,8);ctx.lineTo(-8,-24);ctx.lineTo(2,-10);ctx.lineTo(14,-31);ctx.lineTo(29,8);ctx.closePath();ctx.fillStyle=['#8aab83','#9cae91','#7f9d7b'][item.tone];ctx.fill();ctx.strokeStyle='rgba(70,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();ctx.beginPath();ctx.moveTo(-8,-24);ctx.lineTo(-3,-16);ctx.lineTo(1,-19);ctx.lineTo(7,-9);ctx.lineTo(2,-10);ctx.closePath();ctx.fillStyle='#f7f3df';ctx.fill();
     }else if(item.kind==='building'){
       ell(2,9,18,7,'rgba(45,94,57,.18)');rr(-13,-24,26,34,3);ctx.fillStyle=['#f5d7ae','#c6e1ee','#f3c9cb'][item.tone];ctx.fill();ctx.strokeStyle='rgba(85,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();for(let yy=-18;yy<2;yy+=9)for(let xx=-8;xx<8;xx+=9){rr(xx-2,yy,4,5,1);ctx.fillStyle='#8bd2dd';ctx.fill()}
@@ -272,24 +278,30 @@ function drawAerialMap(amount=1){
     }
     ctx.restore();
   }
-  // 바람결과 구름 그림자를 더해 지면이 정지한 지도처럼 보이지 않게 한다.
-  ctx.save();ctx.globalAlpha=.13;for(let i=0;i<4;i++){const x=(i*W*.31+Math.sin(t*.22+i)*18)%W;ell(x,H*(.12+i*.22),W*.13,12,'#fff')}ctx.restore();
+  if(site.kind==='school'){ctx.save();ctx.globalAlpha=.28;ctx.strokeStyle='#ffe6c5';ctx.lineWidth=4;for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(W*.5,H*.66,W*(.28+i*.045),H*(.09+i*.02),0,0,Math.PI*2);ctx.stroke()}ctx.restore()}
+  // 지면 위를 흐르는 구름 그림자
+  ctx.save();ctx.globalAlpha=.1;for(let i=0;i<4;i++){const x=(i*W*.31+Math.sin(t*.22+i)*18)%W;ell(x,H*(.12+i*.22),W*.13,12,'#fff')}ctx.restore();
   ctx.restore();
 }
 
 function drawTarget(){
   const tp=mapProject(target.x,GROUND-22),w=target.w*tp.scale,y=tp.y;
-  // 착지 구역은 멀리서도 읽히고, 가까워질수록 크게 보이는 표식
-  ctx.save();ctx.globalAlpha=.22;ell(tp.x,y+8,w*.72,12*tp.scale,'#426a48');ctx.restore();
+  // 목적지 모양을 구분해 다음 착륙 장소를 한눈에 읽게 한다.
+  if(site.kind==='roof'){ctx.save();ctx.translate(tp.x,y);ctx.scale(tp.scale,tp.scale);rr(-58,-22,116,44,7);ctx.fillStyle='#dfe4e3';ctx.fill();ctx.strokeStyle='#707f82';ctx.lineWidth=2;ctx.stroke();for(let i=0;i<3;i++){rr(-43+i*37,-15,22,10,2);ctx.fillStyle='#aab7b8';ctx.fill()}ctx.restore()}
+  if(site.kind==='school'){ctx.save();ctx.globalAlpha=.9;ctx.strokeStyle='#f6b07e';ctx.lineWidth=3*tp.scale;ctx.beginPath();ctx.ellipse(tp.x,y+3,Math.max(w*.72,50),18*tp.scale,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
+  if(site.kind==='lake'){ctx.save();ctx.globalAlpha=.32;ell(tp.x,y+10,w*.85,12*tp.scale,'#0b7992');ctx.restore();}
+  ctx.save();ctx.globalAlpha=.22;ell(tp.x,y+8,w*.72,12*tp.scale,site.kind==='lake'?'#0b7992':site.kind==='roof'?'#556469':'#426a48');ctx.restore();
   ell(tp.x,y,w*.58,13*tp.scale,'#fff1c7','#6d5745');
   ell(tp.x,y,w*.38,9*tp.scale,'#ff8fab','#6d5745');
   ell(tp.x,y,w*.15,4.5*tp.scale,'#ff5c8a');
-  txt('착지 구역',tp.x,y-22*tp.scale,12*tp.scale,'#ff5c8a','center',false);
+  txt(site.kind==='lake'?'부표 착지':site.kind==='roof'?'옥상 착지':'운동장 착지',tp.x,y-22*tp.scale,12*tp.scale,'#ff5c8a','center',false);
+  if(P&&P.state==='landed'){const q=mapProject(P.x,GROUND-22),p=clamp(P.landT/.55,0,1),col=P.result.acc===100?'#54bd78':P.result.acc>0?'#f0b44b':'#ed6b70';ctx.save();ctx.globalAlpha=(1-p)*.9;ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,12+p*42,6+p*20,0,0,Math.PI*2);ctx.stroke();ctx.restore();ell(q.x,q.y,5,5,col,'#fff')}
+  if(P&&P.state==='landed'&&P.landT<.55){const a=P.landT/.55;ctx.save();ctx.globalAlpha=(1-a)*.7;ctx.strokeStyle=P.result.acc>0?'#fff0a8':'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(tp.x,y,18+a*w*.65,7+a*16,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
   if(P&&P.state==='chute'){
     const flight=Math.max(0,(GROUND-22-P.y)/Math.max(P.vy,55));
     const steer=(input.right?1:0)-(input.left?1:0);
     const touchSteer=input.down?clamp((input.x-input.startX)/68,-1,1):steer;
-    const drift=(wind.current??wind.v)*1.3*easeOut(P.chute)*weather.wind*gear.wind*P.ch.wind,aim=touchSteer*610*gear.control*P.ch.steer+drift;
+    const drift=(wind.current??wind.v)*1.55*easeOut(P.chute)*weather.wind*site.wind*gear.wind*P.ch.wind,aim=touchSteer*820*gear.control*P.ch.steer+drift;
     const px=clamp(P.x+aim*flight+(P.vx-aim)*(1-Math.exp(-1.35*flight))/1.35,16,W-16);
     const tx=clamp(target.x+target.vx*flight,target.w/2,W-target.w/2);
     const miss=Math.abs(px-tx),color=miss<target.w*.14?'#54bd78':miss<target.w*.5?'#f0b44b':'#ed6b70';
@@ -297,7 +309,7 @@ function drawTarget(){
     ctx.save();ctx.setLineDash([4,6]);ctx.lineWidth=2;ctx.strokeStyle=color;ctx.globalAlpha=.82;
     ctx.beginPath();ctx.moveTo(W/2,H*.42+18);ctx.quadraticCurveTo((W/2+pp.x)/2,H*.68,pp.x,pp.y-5);ctx.stroke();
     ctx.setLineDash([]);ctx.beginPath();ctx.ellipse(pp.x,pp.y-5,10*pp.scale,5*pp.scale,0,0,Math.PI*2);ctx.stroke();
-    txt('예상 착지',pp.x,pp.y-25*pp.scale,11*pp.scale,color,'center',false);ctx.restore();
+    txt('예상 착지',pp.x,pp.y-25*pp.scale,11*pp.scale,color,'center',false);if(alt(P.y)<150)txt(`목표에서 ${Math.round(miss/10)}m`,W/2,H*.67,14,color);ctx.restore();
   }
 }
 function drawWeatherFX(){
@@ -314,11 +326,11 @@ function drawHUD(){
   box(12,10,112,52);txt(`STAGE ${G.stage}`,18,25,14,'#a45d35','left',false);txt(`${P.ch.name} · ${P.ch.trait}`,18,47,11,'#604735','left',false);
   box(W-76,10,64,52);txt(`${G.total}`,W-44,25,17,'#ef6687','center',false);txt(`★ ${P.stars}`,W-44,47,14,'#dc9d18','center',false);
   // 바람
-  const displayWind=(wind.current??wind.v)*weather.wind*gear.wind*P.ch.wind;const wv=Math.round(Math.abs(displayWind)/13),d=Math.sign(displayWind);
+  const displayWind=(wind.current??wind.v)*weather.wind*site.wind*gear.wind*P.ch.wind;const wv=Math.round(Math.abs(displayWind)/13),d=Math.sign(displayWind);
   ctx.save();ctx.translate(W/2,31);rr(-42,-14,84,28,14);ctx.fillStyle='rgba(255,248,231,.96)';ctx.fill();ctx.strokeStyle='rgba(142,99,62,.3)';ctx.lineWidth=1.5;ctx.stroke();
   txt(wind.active?'돌풍!':`바람 ${wv}`,-8,1,14,wind.active?'#e66b35':'#604735','center',false);
   ctx.strokeStyle='#e89035';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(25-d*10,1);ctx.lineTo(25+d*10,1);ctx.lineTo(25+d*4,-5);ctx.moveTo(25+d*10,1);ctx.lineTo(25+d*4,7);ctx.stroke();ctx.restore();
-  if(weather&&gear&&P.state!=='landed')txt(`${weather.icon} ${weather.name}  ·  ${gear.name}`,W/2,67,12,'#4a3a33','center',false);
+  if(weather&&gear&&P.state!=='landed'){txt(`${weather.icon} ${weather.name}  ·  ${gear.name}`,W/2,66,11,'#4a3a33','center',false);txt(`목표 · ${site.icon} ${site.name}`,W/2,83,11,'#4a3a33','center',false)}
   // 고도계
   if(P.state==='fall'||P.state==='chute'){
     const x=W-20,y0=90,y1=H-190,yy=a=>y1-a/MAXALT*(y1-y0);
@@ -332,9 +344,9 @@ function drawHUD(){
 }
 function drawButton(){
   if(P.state==='chute'){
-    const a=alt(P.y),ok=a<90&&a>12;
+    const a=alt(P.y),ok=a<110&&a>12;
     const dy=input.y-input.startY,dx=input.x-input.startX;
-    const hint=wind.active&&!wind.active.mastered?(input.down&&Math.sign(dx)===-wind.active.dir?'바람을 잘 잡았어요!':'돌풍 반대쪽으로 끌어요!'):input.down&&dy>22?'줄 당기는 중!':input.down&&Math.abs(dx)>12?(dx<0?'왼쪽으로 기울어요':'오른쪽으로 기울어요'):ok?'착지 직전 아래로 당겨요':'좌우로 끌어 바람 타기';
+    const hint=wind.active&&!wind.active.mastered?(input.down&&Math.sign(dx)===-wind.active.dir?'바람을 잘 잡았어요!':'돌풍 반대쪽으로 끌어요!'):input.down&&dy>22?'브레이크 당기는 중!':ok&&P.flare<.15?'착지 준비! 아래로 당겨요':input.down&&Math.abs(dx)>12?(dx<0?'왼쪽으로 기울어요':'오른쪽으로 기울어요'):ok?'지금 아래로 당겨 속도 줄여요':'좌우로 크게 끌어 조종해요';
     txt(hint,W/2,H*.72,15,ok||dy>22?'#ff5c8a':'#4a3a33');
     if(ok){rr(W/2-44,H*.75,88,7,4);ctx.fillStyle='rgba(255,255,255,.8)';ctx.fill();rr(W/2-44,H*.75,88*P.flare,7,4);ctx.fillStyle='#ff8fab';ctx.fill()}
     return;
@@ -350,12 +362,12 @@ function drawCard(){
   const cw=Math.min(W-40,300),chh=252,x=(W-cw)/2,y=H*.17+(1-a)*30;
   ctx.save();ctx.globalAlpha=a;rr(x,y,cw,chh,22);ctx.fillStyle='rgba(255,255,255,.95)';ctx.shadowColor='rgba(0,0,0,.18)';ctx.shadowBlur=20;ctx.fill();ctx.shadowBlur=0;
   txt(r.label,W/2,y+32,28,r.safe?(r.acc===100?'#ff5c8a':'#3a6fd8'):'#ff6b6b','center',false);
-  txt(`${weather.name} · ${gear.name} · ${P.ch.trait}`,W/2,y+55,11,'#88766d','center',false);
+  txt(`${site.name} · ${weather.name} · ${gear.name}`,W/2,y+55,10,'#88766d','center',false);
   const rows=r.safe?[['정확도',r.acc],['과감 보너스',r.bold],['바람 읽기',r.windPts||0],['사뿐 보너스',r.softPts],[`별 ×${P.stars}`,r.starPts]]:[['너무 늦었어요',0],[`별 ×${P.stars} (반만)`,Math.floor(r.starPts/2)],['바람 읽기',Math.floor((r.windPts||0)/2)]];
   rows.forEach((row,i)=>{txt(row[0],x+28,y+78+i*19,13,'#7a6a63','left',false);txt('+'+row[1],x+cw-28,y+78+i*19,13,'#4a3a33','right',false)});
   ctx.fillStyle='#eee';ctx.fillRect(x+24,y+178,cw-48,2);
   txt('합계',x+28,y+199,17,'#4a3a33','left',false);txt('+'+r.pts,x+cw-28,y+199,20,'#ff5c8a','right',false);
-  if(P.landT>1.1)txt(G.jump%3===2?`스테이지 ${G.stage} 클리어! 탭 ▶`:'탭해서 다음 친구 ▶',W/2,y+chh+26,15,'#4a3a33');
+  if(P.landT>1.1)txt(G.jump%3===2?`세 곳 착륙 완료! 탭 ▶`:`다음 목적지 · ${SITES[(G.jump+1)%3].name} ▶`,W/2,y+chh+26,14,'#4a3a33');
   ctx.restore();
 }
 function drawTitle(){
@@ -363,7 +375,7 @@ function drawTitle(){
   const bob=Math.sin(t*2)*8,ch=CHARS[Math.floor(t/2.5)%3];
   drawChute(W/2,H*.42+bob,1,ch,Math.sin(t*1.5)*.15,1.42);drawChar(W/2,H*.42+bob,ch,{arms:'chute',rot:Math.sin(t*1.5)*.15,scale:1.35});
   txt('둥실둥실 낙하대',W/2,H*.16,34,'#ff5c8a');
-  const lines=['캐릭터마다 조종 감각과 낙하 속도가 달라요','날씨와 돌풍을 읽으며 목표로 향하세요','착지 직전 아래로 당겨 사뿐히 착지'];
+  const lines=['캐릭터와 낙하산마다 조종 감각이 달라요','부표 → 옥상 → 운동장, 세 곳에 차례로 착륙','바람에 밀리지 않게 조종하고 마지막에 감속!'];
   lines.forEach((l,i)=>txt(l,W/2,H*.59+i*25,14,'#4a3a33'));
   rr(W/2-138,H*.73,276,48,18);ctx.fillStyle='rgba(255,248,231,.96)';ctx.fill();ctx.strokeStyle='rgba(142,99,62,.35)';ctx.lineWidth=1.5;ctx.stroke();
   txt(`낙하산 선택  ·  ${PARACHUTES[gearIndex].name}  ▾`,W/2,H*.73+17,15,'#604735','center',false);txt(PARACHUTES[gearIndex].desc,W/2,H*.73+35,10,'#8b7565','center',false);
@@ -373,7 +385,8 @@ function drawTitle(){
 function draw(){
   const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#6db8ff');sky.addColorStop(1,'#dff4ff');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
   if(G.phase==='title'){drawTitle();return}
-  const mapView=P.state==='chute'?easeOut(P.chute):(P.state==='landed'&&P.result.safe?1:0);
+  const mapView=P.state==='chute'?easeOut(P.chute):(P.state==='landed'?1:0);
+  ctx.save();if(P.state==='landed'&&P.landT<.24){const shake=Math.min(8,(P.touchSpeed||0)*.018)*(1-P.landT/.24);ctx.translate(Math.sin(P.landT*62)*shake,Math.cos(P.landT*51)*shake*.55)}
   if(mapView>0)drawAerialMap(mapView);
   else for(const c of clouds){const sy=c.y-camY;if(sy>-60&&sy<H+60)drawCloud(c.x,sy,c.s)}
   const cx=W/2,cy=H*.42,rot=P.rot+P.spin*Math.sin(t*25)*.6;
@@ -394,13 +407,13 @@ function draw(){
     if(P.state==='landed'){
       const r=P.result;
       if(r.safe){const settle=Math.max(0,1-P.landT/.48),impact=clamp((P.touchSpeed-70)/240,0,1);if(settle>0){ctx.save();ctx.globalAlpha=settle*.42;ell(cx,cy+20,14+(1-settle)*24,4+impact*3,null,'#fff');ctx.restore()}
-        drawChute(cx,cy,P.chute,P.ch,0,1.55);const hop=r.acc>0?Math.max(0,Math.sin(P.landT*9))*7*Math.max(0,1-P.landT/1.5):0;drawChar(cx,cy-hop,P.ch,{arms:r.acc>0?'cheer':'down',scale:1.55,squish:settle>.78})}
+        drawChute(cx,cy,P.chute,P.ch,0,1.55);const hop=r.acc>0?Math.sin(Math.min(1,P.landT/.52)*Math.PI)*18:Math.max(0,Math.sin(Math.min(1,P.landT/.32)*Math.PI))*5;drawChar(cx,cy-hop,P.ch,{arms:r.acc>0?'cheer':'down',scale:1.55,squish:P.landT<.11})}
       else{drawChar(cx,cy+8,P.ch,{squish:true,face:'dizzy'});for(let i=0;i<3;i++){const a=t*4+i*2.1;drawStar(cx+Math.cos(a)*20,cy-14+Math.sin(a)*5,5,a)}}
     }else{drawChute(cx,cy,P.chute,P.ch,rot+(P.state==='chute'?P.bank*.28:0),1.55);drawChar(cx,cy,P.ch,{rot,arms:P.state==='chute'?'chute':'fall',face:P.state==='fall'||P.spin>.3?'wow':'happy',scale:1.55})}
   }
   for(const p of parts){const q=mapView>0?mapProject(p.x,p.y):{x:p.x,y:p.y-camY,scale:1};ctx.globalAlpha=Math.min(1,p.life*2);ell(q.x,q.y,p.s*q.scale,p.s*q.scale,p.c)}ctx.globalAlpha=1;
   for(const p of popups){ctx.globalAlpha=1-p.t/1.1;txt(p.text,p.x,p.y-p.t*40,p.size,p.col)}ctx.globalAlpha=1;
-  drawWeatherFX();drawHUD();drawButton();if(P.state==='landed')drawCard();
+  ctx.restore();drawWeatherFX();drawHUD();drawButton();if(P.state==='landed')drawCard();
 }
 // ---------- 입력 ----------
 function action(x,y){
