@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v14-approved-start-screen">
+<meta name="game-build" content="v15-landing-stars">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -38,7 +38,7 @@ const PARACHUTES=[
 ];
 const SITES=[
   {name:'초등학교 운동장',icon:'⚑',kind:'school',x:.22,target:1.12,wind:0.72,moving:false,focus:'넓은 표적 · 기본 착지'},
-  {name:'강변 부표',icon:'◉',kind:'lake',x:.79,target:0.7,wind:1.38,moving:true,focus:'이동 표적 · 횡풍 보정'},
+  {name:'강변 부표',icon:'◉',kind:'lake',x:.79,target:0.7,wind:1.38,moving:false,focus:'고정 표적 · 횡풍 보정'},
   {name:'아파트 옥상',icon:'⌂',kind:'roof',x:.56,target:0.58,wind:1.28,moving:false,focus:'좁은 표적 · 건물 돌풍'}
 ];
 const WEATHERS=[
@@ -133,7 +133,8 @@ function land(){
   const bold=(s&&acc>0&&P.openAlt<BONUS_ALT)?Math.round(clamp((BONUS_ALT-P.openAlt)/Math.max(40,BONUS_ALT-dangerThreshold())*100,0,100)):0;
   const starPts=P.stars*10,windPts=P.gustPts||0;
   const pts=s?acc+Math.min(bold,100)+starPts+windPts+(soft&&acc>0?20:0):Math.floor((starPts+windPts)/2);
-  P.result={safe:s,soft,softPts:soft&&acc>0?20:0,acc,bold:Math.min(bold,100),starPts,windPts,pts,label,onMat:s&&acc>0};
+  const rating=!s?0:(acc===100&&soft?3:acc>0?2:1);
+  P.result={safe:s,soft,rating,softPts:soft&&acc>0?20:0,acc,bold:Math.min(bold,100),starPts,windPts,pts,label,onMat:s&&acc>0};
   P.state='landed';P.vx=0;P.vy=0;P.landT=0;G.total+=pts;
   if(!s){sfx(160,.35,'sawtooth',.12,-100);buzz(120);burst(P.x,P.y+18,'#a0794f',14)}
   else if(acc===100){[660,880,1100].forEach((f,i)=>setTimeout(()=>sfx(f,.18,'triangle',.14),i*90));burst(P.x,P.y,'#ffd84d',soft?30:20);buzz(soft?55:40);if(soft)pop('사뿐! +20',W/2,H*.42-52,'#ff8fab',22)}
@@ -376,15 +377,21 @@ function drawButton(){
 }
 function drawCard(){
   if(P.landT<.8)return;const r=P.result,a=Math.min(1,(P.landT-.8)*4);
-  const cw=Math.min(W-40,300),chh=252,x=(W-cw)/2,y=H*.17+(1-a)*30;
-  ctx.save();ctx.globalAlpha=a;rr(x,y,cw,chh,22);ctx.fillStyle='rgba(255,255,255,.95)';ctx.shadowColor='rgba(0,0,0,.18)';ctx.shadowBlur=20;ctx.fill();ctx.shadowBlur=0;
-  txt(r.label,W/2,y+32,28,r.safe?(r.acc===100?'#ff5c8a':'#3a6fd8'):'#ff6b6b','center',false);
-  txt(`${site.name} · ${site.focus}`,W/2,y+55,10,'#88766d','center',false);
-  const rows=r.safe?[['정확도',r.acc],['과감 보너스',r.bold],['바람 읽기',r.windPts||0],['사뿐 보너스',r.softPts],[`별 ×${P.stars}`,r.starPts]]:[['너무 늦었어요',0],[`별 ×${P.stars} (반만)`,Math.floor(r.starPts/2)],['바람 읽기',Math.floor((r.windPts||0)/2)]];
-  rows.forEach((row,i)=>{txt(row[0],x+28,y+78+i*19,13,'#7a6a63','left',false);txt('+'+row[1],x+cw-28,y+78+i*19,13,'#4a3a33','right',false)});
-  ctx.fillStyle='#eee';ctx.fillRect(x+24,y+178,cw-48,2);
-  txt('합계',x+28,y+199,17,'#4a3a33','left',false);txt('+'+r.pts,x+cw-28,y+199,20,'#ff5c8a','right',false);
-  if(P.landT>1.1)txt(G.jump%3===2?`3코스 완료! 다음 단계로 ▶`:`다음 코스 · ${SITES[(G.jump+1)%3].name} ▶`,W/2,y+chh+26,14,'#4a3a33');
+  const cw=Math.min(W-40,300),chh=270,x=(W-cw)/2,y=H*.14+(1-a)*30;
+  ctx.save();ctx.globalAlpha=a;rr(x,y,cw,chh,22);ctx.fillStyle='rgba(255,255,255,.96)';ctx.shadowColor='rgba(0,0,0,.18)';ctx.shadowBlur=20;ctx.fill();ctx.shadowBlur=0;
+  txt(r.label,W/2,y+30,26,r.safe?(r.acc===100?'#ff5c8a':'#3a6fd8'):'#ff6b6b','center',false);
+  txt(`${site.name} · ${site.focus}`,W/2,y+51,10,'#88766d','center',false);
+  txt(r.safe?'착지 등급':'안전하게 착지해 보세요',W/2,y+77,12,'#7a6a63','center',false);
+  for(let i=0;i<3;i++){
+    ctx.save();ctx.translate(W/2+(i-1)*34,y+101);ctx.beginPath();
+    for(let j=0;j<10;j++){const ang=-Math.PI/2+j*Math.PI/5,rad=j%2?7:14;const px=Math.cos(ang)*rad,py=Math.sin(ang)*rad;if(j===0)ctx.moveTo(px,py);else ctx.lineTo(px,py)}ctx.closePath();
+    ctx.fillStyle=i<r.rating?'#ffc83d':'#eee7df';ctx.fill();ctx.strokeStyle=i<r.rating?'#e5a51b':'#c9bfb7';ctx.lineWidth=1.5;ctx.stroke();ctx.restore();
+  }
+  const rows=r.safe?[['정확도',r.acc],['과감 보너스',r.bold],['바람 읽기',r.windPts||0],['사뿐 보너스',r.softPts],[`수집 별 ×${P.stars}`,r.starPts]]:[['착지 점수',0],[`수집 별 ×${P.stars} (반만)`,Math.floor(r.starPts/2)],['바람 읽기',Math.floor((r.windPts||0)/2)]];
+  rows.forEach((row,i)=>{txt(row[0],x+28,y+124+i*18,12,'#7a6a63','left',false);txt('+'+row[1],x+cw-28,y+124+i*18,12,'#4a3a33','right',false)});
+  ctx.fillStyle='#eee';ctx.fillRect(x+24,y+217,cw-48,2);
+  txt('합계',x+28,y+237,16,'#4a3a33','left',false);txt('+'+r.pts,x+cw-28,y+237,19,'#ff5c8a','right',false);
+  if(P.landT>1.1)txt(G.jump%3===2?`3곳 완료! 다음 라운드 ▶`:`다음 목표 · ${SITES[(G.jump+1)%3].name} ▶`,W/2,y+chh+24,14,'#4a3a33');
   ctx.restore();
 }
 function drawTitle(){
