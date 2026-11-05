@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v30-concept-art">
+<meta name="game-build" content="v31-island-background">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -16,6 +16,7 @@ canvas{display:block;width:100vw;height:100vh;height:100dvh}
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 const bearParachuteRigArt=new Image();bearParachuteRigArt.src='assets/characters/bear-parachute-rig.png';
+const islandBG=new Image();islandBG.src='assets/background/island-map.webp';
 let W,H,DPR;
 function resize(){
   DPR=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
@@ -38,7 +39,7 @@ const PARACHUTES=[
   {name:'스피드 캐노피',desc:'빠르고 민첩하지만 바람에 약해요',control:1.08,wind:1.22,fall:1.12,flare:0.84,open:0.86,wing:0.88,panels:5}
 ];
 const SITES=[
-  {name:'초등학교 운동장',icon:'⚑',kind:'school',x:.22,target:1.12,wind:0.72,moving:false,focus:'넓은 표적 · 기본 착지'},
+  {name:'섬 마을 잔디밭',icon:'⚑',kind:'school',x:.22,target:1.12,wind:0.72,moving:false,focus:'넓은 표적 · 기본 착지'},
   {name:'강변 부표',icon:'◉',kind:'lake',x:.79,target:0.7,wind:1.38,moving:false,focus:'고정 표적 · 횡풍 보정'},
   {name:'아파트 옥상',icon:'⌂',kind:'roof',x:.56,target:0.58,wind:1.28,moving:false,focus:'좁은 표적 · 건물 돌풍'}
 ];
@@ -322,6 +323,11 @@ function projectedPath(samples,color,width,alpha=1){
 }
 function drawAerialMap(amount=1){
   ctx.save();ctx.globalAlpha=amount;
+  if(site.kind==='school'&&islandBG.complete&&islandBG.naturalWidth){
+    const scale=Math.max(W/islandBG.naturalWidth,H/islandBG.naturalHeight);
+    const dw=islandBG.naturalWidth*scale,dh=islandBG.naturalHeight*scale;
+    ctx.drawImage(islandBG,(W-dw)/2,(H-dh)/2,dw,dh);
+  }else{
   const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#8dd2f9');g.addColorStop(.22,'#c7e9f5');g.addColorStop(.42,'#ccebb0');g.addColorStop(.68,'#9bda83');g.addColorStop(1,'#78c96b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   // River and road are world paths: they no longer scroll at a different rate from buildings.
   const river=[],road=[],eastRoad=[];for(let y=START_Y;y<=GROUND;y+=70){river.push([riverWorldX(y),y]);road.push([W*(.17+.095*Math.sin(y/WORLD*4.2+1.1)),y]);eastRoad.push([W*(.84+.055*Math.sin(y/WORLD*4.7+.8)),y])}
@@ -341,6 +347,7 @@ function drawAerialMap(amount=1){
     else{ell(0,9,15,6,'rgba(45,94,57,.2)');ell(0,0,11,12,'#398b55','#2f7549');ell(-7,-5,8,9,'#58ad64');ell(6,-7,8,9,'#70bf68');ell(0,-12,7,8,'#83ce74');ell(-2,-14,3,3,'rgba(255,255,255,.42)')}
     ctx.restore();
   }
+  }
   // Forecast gust bands are placed over the shared map and move toward the player with perspective.
   if(P.state==='chute'&&wind.gusts){for(const gust of wind.gusts){if(gust.entered)continue;const wy=GROUND-22-gust.alt/MAXALT*(GROUND-22-START_Y);if(wy<=P.y)continue;const q=mapProject(W/2,wy);if(q.y<72||q.y>H*.88)continue;ctx.save();ctx.globalAlpha=.28;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.setLineDash([8,8]);ctx.beginPath();ctx.moveTo(W*.16,q.y);ctx.quadraticCurveTo(W*.5,q.y+Math.sin(t*2+gust.alt)*10,W*.84,q.y);ctx.stroke();ctx.setLineDash([]);for(let i=0;i<3;i++){const ax=W*(.34+i*.16),ay=q.y+Math.sin(t*2+i)*4;ctx.save();ctx.translate(ax,ay);ctx.rotate(gust.dir>0?0:Math.PI);ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(-3,-5);ctx.lineTo(-3,5);ctx.closePath();ctx.fill();ctx.restore()}txt('돌풍 예상',W*.5,q.y-13,11,'#fff','center',false);ctx.restore()}}
   ctx.save();ctx.globalAlpha=.1;for(let i=0;i<4;i++){const x=(i*W*.31+Math.sin(t*.22+i)*18)%W;ell(x,H*(.12+i*.22),W*.13,12,'#fff')}ctx.restore();
@@ -356,7 +363,7 @@ function drawTarget(){
   ell(tp.x,y,w*.58,13*tp.scale,'#fff1c7','#6d5745');
   ell(tp.x,y,w*.38,9*tp.scale,'#ff8fab','#6d5745');
   ell(tp.x,y,w*.15,4.5*tp.scale,'#ff5c8a');
-  txt(site.kind==='lake'?'부표 착지':site.kind==='roof'?'옥상 착지':'운동장 착지',tp.x,y-22*tp.scale,12*tp.scale,'#ff5c8a','center',false);
+  txt(site.kind==='lake'?'부표 착지':site.kind==='roof'?'옥상 착지':'잔디밭 착지',tp.x,y-22*tp.scale,12*tp.scale,'#ff5c8a','center',false);
   if(P&&P.state==='landed'){const q=mapProject(P.x,GROUND-22),p=clamp(P.landT/.55,0,1),col=P.result.acc===100?'#54bd78':P.result.acc>0?'#f0b44b':'#ed6b70';ctx.save();ctx.globalAlpha=(1-p)*.9;ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,12+p*42,6+p*20,0,0,Math.PI*2);ctx.stroke();ctx.restore();ell(q.x,q.y,5,5,col,'#fff')}
   if(P&&P.state==='landed'&&P.landT<.55){const a=P.landT/.55;ctx.save();ctx.globalAlpha=(1-a)*.7;ctx.strokeStyle=P.result.acc>0?'#fff0a8':'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(tp.x,y,18+a*w*.65,7+a*16,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
   if(P&&P.state==='chute'){
@@ -462,7 +469,7 @@ function drawTitle(){
   // top HUD, mission and jump control
   const box=(x,y,w,h)=>{rr(x,y,w,h,16);ctx.fillStyle='rgba(255,248,231,.97)';ctx.fill();ctx.strokeStyle='rgba(142,99,62,.35)';ctx.lineWidth=1.5;ctx.stroke()};
   box(14,12,118,44);txt('STAGE 01',73,34,17,'#a45d35','center',false);
-  box(W*.36,12,W*.42,44);txt('목표 · 학교 운동장',W*.57,34,14,'#604735','center',false);
+  box(W*.36,12,W*.42,44);txt('목표 · 섬 마을 잔디밭',W*.57,34,14,'#604735','center',false);
   for(let i=0;i<3;i++)drawStar(W*.82+i*25,34,9,-.1);
   box(W*.20,H*.70,W*.60,36);txt('탭해서 뛰어내리기',W*.5,H*.70+18,15,'#604735','center',false);
   const bw=W*.72,bh=58,by0=H*.755;rr((W-bw)/2,by0,bw,bh,23);ctx.fillStyle='#ff6877';ctx.fill();ctx.strokeStyle='#d84d62';ctx.lineWidth=2;ctx.stroke();txt('↓  점프하기',W/2,by0+bh/2,23,'#fff','center',false);
