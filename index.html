@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v20-separated-assets">
+<meta name="game-build" content="v21-connected-city">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -95,18 +95,22 @@ function newJump(){
     // 도시의 구역은 한 번 생성한 뒤 모든 착지 코스에서 같은 월드 좌표를 공유한다.
     const add=(kind,x,y,size,tone=0)=>scenery.push({kind,x,y,size,tone});
     for(let i=0;i<12;i++){const y=GROUND-2350+i*104;add('mountain',W*(.02+(i%4)*.31),y,rnd(1.05,1.55),i%3)}
-    for(let row=0;row<7;row++)for(let col=0;col<5;col++){
-      const y=GROUND-1550+row*188+(col%2)*42;
-      const x=W*(.62+col*.09+rnd(-.025,.025));
-      if(Math.abs(x/W-(.52+.16*Math.sin(y/WORLD*5)+.07*Math.sin(y/WORLD*12)))>.12)add('building',x,y,rnd(1.0,1.38),(row+col)%3);
+    // 아파트 구역이 강 건너 주택가와 이어지도록 중간 블록을 촘촘히 잇는다.
+    for(let row=0;row<10;row++)for(let col=0;col<6;col++){
+      const y=GROUND-2350+row*177+(col%2)*38;
+      const x=W*(.45+col*.083+rnd(-.018,.018));
+      if(Math.abs(x-riverWorldX(y))>W*.125)add('building',x,y,rnd(.88,1.28),(row+col)%3);
     }
-    for(let row=0;row<7;row++)for(let col=0;col<5;col++){
-      const y=GROUND-1480+row*205+(col%2)*30,x=W*(.035+col*.073+rnd(-.018,.018));
-      add('house',x,y,rnd(.78,1.08),(row+col)%3);
+    // 학교와 맞닿은 주택가는 강 굽이를 따라 이어지고 운동장 주변은 비워 둔다.
+    for(let row=0;row<10;row++)for(let col=0;col<6;col++){
+      const y=GROUND-2250+row*188+(col%2)*34,x=W*(.025+col*.074+rnd(-.012,.012));
+      const riverGap=Math.abs(x-riverWorldX(y))>W*.105,schoolClear=Math.abs(x/W-.22)>.13||y<GROUND-540;
+      if(riverGap&&schoolClear)add('house',x,y,rnd(.75,1.02),(row+col)%3);
     }
-    for(let i=0;i<72;i++){
-      const y=rnd(GROUND-2150,GROUND-70),x=W*rnd(.015,.985);
-      if(Math.abs(x-riverWorldX(y))>W*.12 && !(Math.abs(x/W-.22)<.12&&y>GROUND-520))add('tree',x,y,rnd(.72,1.18),i%3);
+    // 나무와 작은 공터를 섞어 건물 블록이 한 덩어리로 뭉쳐 보이지 않게 한다.
+    for(let i=0;i<112;i++){
+      const y=rnd(GROUND-2550,GROUND-45),x=W*rnd(.015,.985);
+      if(Math.abs(x-riverWorldX(y))>W*.105 && !(Math.abs(x/W-.22)<.14&&y>GROUND-610))add('tree',x,y,rnd(.68,1.12),i%3);
     }
   }
   clouds=[];for(let i=0;i<16;i++)clouds.push({x:Math.random()*W,y:rnd(260,GROUND-600),s:rnd(.6,1.4)});
@@ -312,9 +316,10 @@ function drawAerialMap(amount=1){
   ctx.save();ctx.globalAlpha=amount;
   const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#8dd2f9');g.addColorStop(.22,'#c7e9f5');g.addColorStop(.42,'#ccebb0');g.addColorStop(.68,'#9bda83');g.addColorStop(1,'#78c96b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   // River and road are world paths: they no longer scroll at a different rate from buildings.
-  const river=[],road=[];for(let y=START_Y;y<=GROUND;y+=70){river.push([riverWorldX(y),y]);road.push([W*(.17+.095*Math.sin(y/WORLD*4.2+1.1)),y])}
+  const river=[],road=[],eastRoad=[];for(let y=START_Y;y<=GROUND;y+=70){river.push([riverWorldX(y),y]);road.push([W*(.17+.095*Math.sin(y/WORLD*4.2+1.1)),y]);eastRoad.push([W*(.84+.055*Math.sin(y/WORLD*4.7+.8)),y])}
   projectedPath(river,'#b5d995',W*.17,.92);projectedPath(river,'#43b9cf',W*.135,.98);projectedPath(river,'#82dce0',W*.085,.96);
   projectedPath(road,'#d9c994',W*.045,.92);projectedPath(road,'#f5edce',W*.032,.96);
+  projectedPath(eastRoad,'#d9c994',W*.026,.76);projectedPath(eastRoad,'#f5edce',W*.017,.78);
   // Green neighborhood clearings and the school grounds stay attached to their map positions.
   const field=mapProject(W*.22,GROUND-22);ctx.save();ctx.translate(field.x,field.y);ctx.scale(field.scale,field.scale);ell(0,0,W*.145,30,'#71c76b','#5fac58');rr(-W*.115,-19,W*.23,38,19);ctx.fillStyle='#86d47a';ctx.fill();ctx.strokeStyle='#f4c2a0';ctx.lineWidth=3;ctx.stroke();for(let k=0;k<3;k++){ctx.beginPath();ctx.ellipse(0,0,W*(.065+k*.022),8+k*6,0,0,Math.PI*2);ctx.stroke()}ctx.fillStyle='#f2dfb4';rr(-W*.022,-9,W*.044,18,3);ctx.fill();ctx.restore();
   // School track sits in the western neighborhood; the river buoy is in a widened bend.
