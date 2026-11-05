@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v15-landing-stars">
+<meta name="game-build" content="v17-mockup-view">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -265,10 +265,16 @@ function drawBird(b,sy){ctx.save();ctx.translate(b.x,sy);ctx.scale(b.vx>0?1:-1,1
   ell(0,0,13,10,'#8ec5ff',OL);const w=Math.sin(t*18)*6;ell(-2,-4-w*.5,7,4+Math.abs(w)*.4,'#c9e4ff',OL);
   ell(5,-2,1.8,1.8,OL);ctx.fillStyle='#ff9f1c';ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(18,2);ctx.lineTo(12,4);ctx.fill();ctx.restore()}
 
-// 낙하산이 펴진 뒤에는 지면을 향해 내려다보는 추적 카메라로 전환
+// 곰돌이를 조금 낮게 두고, 착지에 가까워질수록 카메라도 부드럽게 내려간다.
+function playerScreenY(){
+  const near=1-clamp(alt(P.y)/MAXALT,0,1);
+  return H*(.50+.10*near);
+}
+// 낙하산 뒤쪽 시점: 먼 표적은 앞쪽에 작게, 가까운 표적은 발밑으로 내려온다.
 function mapProject(wx,wy){
-  const distance=Math.max(0,wy-P.y),depth=distance/(distance+900);
-  return {x:W/2+(wx-P.x)*(.32+.68*(1-depth)),y:H*.42+depth*H*.51,scale:1.3-.8*depth,depth};
+  const distance=Math.max(0,wy-P.y),depth=distance/(distance+1800),near=1-clamp(alt(P.y)/MAXALT,0,1);
+  const horizon=playerScreenY()+H*(.07+.06*near);
+  return {x:W/2+(wx-P.x)*(.32+.68*(1-depth)),y:horizon-depth*H*.16,scale:1.3-.8*depth,depth};
 }
 function projectedPath(samples,color,width,alpha=1){
   ctx.save();ctx.globalAlpha=alpha;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=color;
@@ -279,7 +285,7 @@ function projectedPath(samples,color,width,alpha=1){
 }
 function drawAerialMap(amount=1){
   ctx.save();ctx.globalAlpha=amount;
-  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#ccebb0');g.addColorStop(.45,'#9bda83');g.addColorStop(1,'#78c96b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#8dd2f9');g.addColorStop(.22,'#c7e9f5');g.addColorStop(.42,'#ccebb0');g.addColorStop(.68,'#9bda83');g.addColorStop(1,'#78c96b');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   // River and road are world paths: they no longer scroll at a different rate from buildings.
   const river=[],road=[];for(let y=START_Y;y<=GROUND;y+=70){river.push([riverWorldX(y),y]);road.push([W*(.17+.095*Math.sin(y/WORLD*4.2+1.1)),y])}
   projectedPath(river,'#b5d995',W*.17,.92);projectedPath(river,'#43b9cf',W*.135,.98);projectedPath(river,'#82dce0',W*.085,.96);
@@ -432,7 +438,7 @@ function draw(){
   ctx.save();if(P.state==='landed'&&P.landT<.24){const shake=Math.min(8,(P.touchSpeed||0)*.018)*(1-P.landT/.24);ctx.translate(Math.sin(P.landT*62)*shake,Math.cos(P.landT*51)*shake*.55)}
   if(mapView>0)drawAerialMap(mapView);
   else for(const c of clouds){const sy=c.y-camY;if(sy>-60&&sy<H+60)drawCloud(c.x,sy,c.s)}
-  const cx=W/2,cy=H*.42,rot=P.rot+P.spin*Math.sin(t*25)*.6;
+  const cx=W/2,cy=playerScreenY(),rot=P.rot+P.spin*Math.sin(t*25)*.6;
   if(mapView>0){
     for(const s of stars)if(!s.got&&s.y>P.y+18){const q=mapProject(s.x,s.y);if(q.y>-30&&q.y<H+30)drawStar(q.x,q.y+Math.sin(t*3+s.x)*2,10*q.scale,t)}
     for(const b of birds)if(b.y>P.y){const q=mapProject(b.x,b.y);if(q.y>-30&&q.y<H+30){ctx.save();ctx.translate(q.x,q.y);ctx.scale(q.scale,q.scale);drawBird({x:0,y:0,vx:b.vx,hit:b.hit},0);ctx.restore()}}
