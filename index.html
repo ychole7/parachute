@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v25-direct-hand-lines">
+<meta name="game-build" content="v26-arm-pose-swap">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -16,6 +16,8 @@ canvas{display:block;width:100vw;height:100vh;height:100dvh}
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 const bearArt=new Image();bearArt.src='assets/characters/bear-back.png';
+const bearSteerLeftArt=new Image();bearSteerLeftArt.src='assets/characters/bear-steer-left.png';
+const bearSteerRightArt=new Image();bearSteerRightArt.src='assets/characters/bear-steer-right.png';
 const canopyArt=new Image();canopyArt.src='assets/parachutes/orange-cream-canopy.png';
 let W,H,DPR;
 function resize(){
@@ -271,7 +273,11 @@ function drawParachuteRig(x,y,rot){
   const canopyAngle=clamp(rot*.55+Math.sin(t*1.2)*.018,-.11,.11);
   // 원본 스프라이트에 박혀 있던 바깥쪽 줄·고리를 잘라내고, 천 부분만 사용한다.
   const fabricRatio=.64,fabricH=cH*fabricRatio;
-  const handX=bearW*.29,ropeDrop=bearH*.17;
+  const lean=clamp(P.bank,-1,1);
+  const pose=Math.abs(lean)<.14?'neutral':lean<0?'left':'right';
+  const poseArt=pose==='left'&&bearSteerLeftArt.complete&&bearSteerLeftArt.naturalWidth?bearSteerLeftArt:pose==='right'&&bearSteerRightArt.complete&&bearSteerRightArt.naturalWidth?bearSteerRightArt:bearArt;
+  const handAnchors=pose==='left'?[[.22,.39],[.81,.25]]:pose==='right'?[[.19,.25],[.80,.40]]:[[.22,.39],[.78,.39]];
+  const ropeDrop=bearH*.17;
   const canopyTop=handY-ropeDrop-fabricH*Math.cos(canopyAngle);
   ctx.save();ctx.translate(canopyX,canopyTop);ctx.rotate(canopyAngle);
   ctx.drawImage(canopyArt,0,0,canopyArt.naturalWidth,canopyArt.naturalHeight*fabricRatio,-cW/2,0,cW,fabricH);ctx.restore();
@@ -279,7 +285,8 @@ function drawParachuteRig(x,y,rot){
   const handRot=clamp(rot*.24+Math.sin(t*1.8)*.012,-.08,.08);
   ctx.save();ctx.lineCap='round';
   for(const side of[-1,1]){
-    const hx=bearX+side*handX*Math.cos(handRot),hy=handY+side*handX*Math.sin(handRot);
+    const anchor=handAnchors[side===-1?0:1],localX=(anchor[0]-.5)*bearW,localY=(anchor[1]-.56)*bearH;
+    const hx=bearX+localX*Math.cos(handRot)-localY*Math.sin(handRot),hy=bearTop+.56*bearH+localX*Math.sin(handRot)+localY*Math.cos(handRot);
     for(const spread of[.13,.22,.31]){
       const lx=side*cW*spread,ly=fabricH;
       const sx=canopyX+lx*Math.cos(canopyAngle)-ly*Math.sin(canopyAngle);
@@ -291,7 +298,7 @@ function drawParachuteRig(x,y,rot){
     }
   }
   ctx.restore();
-  ctx.save();ctx.translate(bearX,bearTop+bearH*.56);ctx.rotate(handRot);ctx.drawImage(bearArt,-bearW/2,-bearH*.56,bearW,bearH);ctx.restore();
+  ctx.save();ctx.translate(bearX,bearTop+bearH*.56);ctx.rotate(handRot);ctx.drawImage(poseArt,-bearW/2,-bearH*.56,bearW,bearH);ctx.restore();
   return true;
 }
 
