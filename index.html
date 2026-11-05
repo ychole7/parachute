@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v23-harness-alignment">
+<meta name="game-build" content="v24-grip-anchor-fix">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -267,14 +267,21 @@ function drawParachuteRig(x,y,rot){
   const sway=clamp(P.vx/350,-1,1),bearX=x+sway*W*.012;
   const bearTop=y-bearH*.56,handY=bearTop+bearH*.365;
   const inflate=.90+.10*easeOut(P.chute),cW=canopyW,cH=canopyH*inflate;
-  const canopyX=bearX+Math.sin(t*1.35)*W*.003+sway*W*.002;
-  // 손이 캐노피 고리를 잡도록 캐노피 높이를 손 위치에 맞춘다.
-  const canopyTop=handY-cH*.94;
-  ctx.save();ctx.translate(canopyX,canopyTop);ctx.rotate(clamp(rot*.55+Math.sin(t*1.2)*.018,-.11,.11));ctx.drawImage(canopyArt,-cW/2,0,cW,cH);ctx.restore();
-  // 캐노피 고리에서 곰돌이 양손까지 이어지는 연결 줄
-  const loopY=canopyTop+cH*.94,loopX=cW*.205,handX=bearW*.34;
-  ctx.save();ctx.strokeStyle='rgba(104,76,57,.78)';ctx.lineWidth=Math.max(1.5,W*.006);ctx.lineCap='round';
-  for(const side of[-1,1]){ctx.beginPath();ctx.moveTo(canopyX+side*loopX,loopY);ctx.quadraticCurveTo((canopyX+bearX)/2+side*W*.02,(loopY+handY)/2,bearX+side*handX,handY);ctx.stroke()}
+  const canopyX=bearX+Math.sin(t*1.35)*W*.002+sway*W*.001;
+  const canopyAngle=clamp(rot*.55+Math.sin(t*1.2)*.018,-.11,.11);
+  // 캐노피 그림에 포함된 고리의 회전 위치를 계산해 양손 기준으로 맞춘다.
+  const loopX=cW*.205,loopLocalY=cH*.94;
+  const canopyTop=handY-loopLocalY*Math.cos(canopyAngle);
+  ctx.save();ctx.translate(canopyX,canopyTop);ctx.rotate(canopyAngle);ctx.drawImage(canopyArt,-cW/2,0,cW,cH);ctx.restore();
+  // 고리가 흔들려도 줄 끝이 손바닥에 닿도록 실제 회전 좌표로 연결한다.
+  const handX=bearW*.29,handRot=clamp(rot*.24+Math.sin(t*1.8)*.012,-.08,.08);
+  ctx.save();ctx.strokeStyle='rgba(91,59,39,.94)';ctx.lineWidth=Math.max(2.2,W*.007);ctx.lineCap='round';
+  for(const side of[-1,1]){
+    const ax=canopyX+side*loopX*Math.cos(canopyAngle)-loopLocalY*Math.sin(canopyAngle);
+    const ay=canopyTop+side*loopX*Math.sin(canopyAngle)+loopLocalY*Math.cos(canopyAngle);
+    const hx=bearX+side*handX*Math.cos(handRot),hy=handY+side*handX*Math.sin(handRot);
+    ctx.beginPath();ctx.moveTo(ax,ay);ctx.quadraticCurveTo((ax+hx)/2+side*W*.012,(ay+hy)/2,hx,hy);ctx.stroke();
+  }
   ctx.restore();
   ctx.save();ctx.translate(bearX,bearTop+bearH*.56);ctx.rotate(clamp(rot*.24+Math.sin(t*1.8)*.012,-.08,.08));ctx.drawImage(bearArt,-bearW/2,-bearH*.56,bearW,bearH);ctx.restore();
   return true;
