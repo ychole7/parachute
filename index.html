@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v21-connected-city">
+<meta name="game-build" content="v22-separated-sprites">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -15,7 +15,8 @@ canvas{display:block;width:100vw;height:100vh;height:100dvh}
 <canvas id="c"></canvas>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
-const chuteArt=new Image();chuteArt.src='assets/characters/bear-parachute.png';
+const bearArt=new Image();bearArt.src='assets/characters/bear-back.png';
+const canopyArt=new Image();canopyArt.src='assets/parachutes/orange-cream-canopy.png';
 let W,H,DPR;
 function resize(){
   DPR=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
@@ -257,10 +258,24 @@ function drawChar(x,y,ch,o={}){
   if(ch.kind==='bear'){ctx.save();ctx.translate(0,-29);ctx.fillStyle='#6c4934';ctx.strokeStyle=OL;ctx.lineWidth=1.5;rr(-12,-3,24,8,4);ctx.fill();ctx.stroke();ell(-6,0,4,3,'#bde9f3','#6c4934');ell(6,0,4,3,'#bde9f3','#6c4934');ctx.restore()}
   ctx.restore();
 }
-function drawChuteArt(x,y,rot){
-  if(!chuteArt.complete||!chuteArt.naturalWidth)return false;
-  const aspect=chuteArt.naturalWidth/chuteArt.naturalHeight,iw=Math.min(W*.96,H*.52*aspect),ih=iw/aspect;
-  ctx.save();ctx.translate(x,y);ctx.rotate(clamp(rot,-.16,.16));const inflate=.9+.1*easeOut(P.chute);ctx.scale(1,inflate);ctx.drawImage(chuteArt,-iw/2,-ih*.76,iw,ih);ctx.restore();return true;
+function drawParachuteRig(x,y,rot){
+  if(!bearArt.complete||!bearArt.naturalWidth||!canopyArt.complete||!canopyArt.naturalWidth)return false;
+  const canopyAspect=canopyArt.naturalWidth/canopyArt.naturalHeight;
+  const canopyW=Math.min(W*.96,H*.56*canopyAspect)*(gear?.wing||1),canopyH=canopyW/canopyAspect;
+  const bearAspect=bearArt.naturalWidth/bearArt.naturalHeight;
+  const bearW=Math.min(W*.62,H*.36*bearAspect),bearH=bearW/bearAspect;
+  const sway=clamp(P.vx/350,-1,1),canopyX=x+Math.sin(t*1.35)*W*.012+sway*W*.018;
+  const bearX=x+sway*W*.012,bearTop=y-bearH*.56,canopyTop=y-H*.47;
+  const inflate=.90+.10*easeOut(P.chute),cW=canopyW,cH=canopyH*inflate;
+  // 캐노피와 곰돌이를 따로 그려 바람에 흔들리는 폭을 다르게 준다.
+  ctx.save();ctx.translate(canopyX,canopyTop);ctx.rotate(clamp(rot*.55+Math.sin(t*1.2)*.018,-.11,.11));ctx.drawImage(canopyArt,-cW/2,0,cW,cH);ctx.restore();
+  // 캐노피 고리에서 곰돌이 양손까지 이어지는 연결 줄
+  const loopY=canopyTop+cH*.94,loopX=cW*.205,handY=bearTop+bearH*.365,handX=bearW*.34;
+  ctx.save();ctx.strokeStyle='rgba(104,76,57,.78)';ctx.lineWidth=Math.max(1.5,W*.006);ctx.lineCap='round';
+  for(const side of[-1,1]){ctx.beginPath();ctx.moveTo(canopyX+side*loopX,loopY);ctx.quadraticCurveTo((canopyX+bearX)/2+side*W*.02,(loopY+handY)/2,bearX+side*handX,handY);ctx.stroke()}
+  ctx.restore();
+  ctx.save();ctx.translate(bearX,bearTop+bearH*.56);ctx.rotate(clamp(rot*.24+Math.sin(t*1.8)*.012,-.08,.08));ctx.drawImage(bearArt,-bearW/2,-bearH*.56,bearW,bearH);ctx.restore();
+  return true;
 }
 function drawChute(x,y,p,ch,rot,scale=1){
   if(p<=0)return;const e=easeOut(p);ctx.save();ctx.translate(x,y);ctx.rotate(rot*.6);
@@ -488,8 +503,8 @@ function draw(){
       if(r.safe){const settle=Math.max(0,1-P.landT/.48),impact=clamp((P.touchSpeed-70)/240,0,1);if(settle>0){ctx.save();ctx.globalAlpha=settle*.42;ell(cx,cy+20,14+(1-settle)*24,4+impact*3,null,'#fff');ctx.restore()}
         drawChute(cx,cy,P.chute,P.ch,0,1.55);const hop=r.acc>0?Math.sin(Math.min(1,P.landT/.52)*Math.PI)*18:Math.max(0,Math.sin(Math.min(1,P.landT/.32)*Math.PI))*5;drawChar(cx,cy-hop,P.ch,{arms:r.acc>0?'cheer':'down',scale:1.55,squish:P.landT<.11})}
       else{drawChar(cx,cy+8,P.ch,{squish:true,face:'dizzy'});for(let i=0;i<3;i++){const a=t*4+i*2.1;drawStar(cx+Math.cos(a)*20,cy-14+Math.sin(a)*5,5,a)}}
-    }else if(P.state==='chute'&&drawChuteArt(cx,cy,rot+P.bank*.18)){
-      // 시안의 플러시 곰돌이+낙하산 합성 스프라이트
+    }else if(P.state==='chute'&&drawParachuteRig(cx,cy,rot+P.bank*.18)){
+      // 분리된 곰돌이와 캐노피 스프라이트를 각각 흔들어 그린다.
     }else{drawChute(cx,cy,P.chute,P.ch,rot+(P.state==='chute'?P.bank*.28:0),1.55);drawChar(cx,cy,P.ch,{rot,arms:P.state==='chute'?'chute':'fall',back:true,face:P.state==='fall'||P.spin>.3?'wow':'happy',scale:1.55})}
   }
   for(const p of parts){const q=mapView>0?mapProject(p.x,p.y):{x:p.x,y:p.y-camY,scale:1};ctx.globalAlpha=Math.min(1,p.life*2);ell(q.x,q.y,p.s*q.scale,p.s*q.scale,p.c)}ctx.globalAlpha=1;
