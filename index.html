@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v4-aerial-follow-camera">
+<meta name="game-build" content="v5-island-landing-view">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -69,7 +69,7 @@ function newJump(){
   stars=[];for(let i=0;i<10+s*2;i++)stars.push({x:rnd(30,W-30),y:rnd(600,GROUND-500),got:false});
   birds=[];if(s>=2)for(let i=0;i<Math.min(s,6);i++)birds.push({x:Math.random()*W,y:rnd(900,GROUND-500),vx:rnd(60,120)*(Math.random()<.5?-1:1),hit:false});
   scenery=[];
-  for(let i=0;i<30;i++)scenery.push({kind:i%4===0?'house':'tree',x:rnd(18,W-18),y:rnd(220,GROUND-130),size:rnd(.65,1.2),tone:i%3});
+  for(let i=0;i<42;i++){const n=i%7;scenery.push({kind:n===0?'house':n===1?'mountain':n===2?'building':'tree',x:rnd(18,W-18),y:rnd(220,GROUND-130),size:rnd(.65,1.2),tone:i%3})}
   clouds=[];for(let i=0;i<16;i++)clouds.push({x:Math.random()*W,y:rnd(260,GROUND-600),s:rnd(.6,1.4)});
   camY=0;G.phase='play';
 }
@@ -181,7 +181,7 @@ function drawChar(x,y,ch,o={}){
 }
 function drawChute(x,y,p,ch,rot,scale=1){
   if(p<=0)return;const e=easeOut(p);ctx.save();ctx.translate(x,y);ctx.rotate(rot*.6);
-  ctx.scale(scale,scale);const R=58*e,cy=-28-58*e;
+  ctx.scale(scale*1.5,scale*.9);const R=58*e,cy=-28-58*e;
   ctx.strokeStyle='rgba(74,58,51,.55)';ctx.lineWidth=1.2;
   for(const k of[-1,-.45,.45,1]){ctx.beginPath();ctx.moveTo(Math.sign(k)*15,-26);ctx.lineTo(k*R,cy);ctx.stroke()}
   const n=6;
@@ -234,7 +234,11 @@ function drawAerialMap(amount=1){
   for(const item of scenery){
     if(item.y<P.y+35)continue;const p=mapProject(item.x,item.y);if(p.y<-50||p.y>H+55)continue;
     const z=item.size*(.35+1.1*(1-p.depth));ctx.save();ctx.translate(p.x,p.y);ctx.scale(z,z);
-    if(item.kind==='house'){
+    if(item.kind==='mountain'){
+      ell(0,8,24,8,'rgba(45,94,57,.2)');ctx.beginPath();ctx.moveTo(-26,8);ctx.lineTo(-8,-24);ctx.lineTo(2,-10);ctx.lineTo(14,-31);ctx.lineTo(29,8);ctx.closePath();ctx.fillStyle=['#8aab83','#9cae91','#7f9d7b'][item.tone];ctx.fill();ctx.strokeStyle='rgba(70,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();ctx.beginPath();ctx.moveTo(-8,-24);ctx.lineTo(-3,-16);ctx.lineTo(1,-19);ctx.lineTo(7,-9);ctx.lineTo(2,-10);ctx.closePath();ctx.fillStyle='#f7f3df';ctx.fill();
+    }else if(item.kind==='building'){
+      ell(2,9,18,7,'rgba(45,94,57,.18)');rr(-13,-24,26,34,3);ctx.fillStyle=['#f5d7ae','#c6e1ee','#f3c9cb'][item.tone];ctx.fill();ctx.strokeStyle='rgba(85,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();for(let yy=-18;yy<2;yy+=9)for(let xx=-8;xx<8;xx+=9){rr(xx-2,yy,4,5,1);ctx.fillStyle='#8bd2dd';ctx.fill()}
+    }else if(item.kind==='house'){
       ell(2,9,19,7,'rgba(45,94,57,.18)');rr(-16,-6,32,20,3);ctx.fillStyle=['#fff0d5','#f7d4bd','#dce8ff'][item.tone];ctx.fill();ctx.strokeStyle='rgba(85,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();
       ctx.beginPath();ctx.moveTo(-20,-5);ctx.lineTo(0,-19);ctx.lineTo(20,-5);ctx.closePath();ctx.fillStyle=['#df8a70','#bd7896','#8498ca'][item.tone];ctx.fill();ctx.stroke();
       rr(-3,3,6,11,2);ctx.fillStyle='#a87554';ctx.fill();rr(-12,-2,5,6,1);ctx.fillStyle='#94d7e5';ctx.fill();rr(7,-2,5,6,1);ctx.fill();
@@ -321,9 +325,9 @@ function drawCard(){
 function drawTitle(){
   for(const c of clouds)drawCloud((c.x+t*12*c.s)%(W+120)-60,c.y%H,c.s);
   const bob=Math.sin(t*2)*8,ch=CHARS[Math.floor(t/2.5)%3];
-  drawChute(W/2,H*.42+bob,1,ch,Math.sin(t*1.5)*.15,1.18);drawChar(W/2,H*.42+bob,ch,{arms:'chute',rot:Math.sin(t*1.5)*.15,scale:1.18});
+  drawChute(W/2,H*.42+bob,1,ch,Math.sin(t*1.5)*.15,1.42);drawChar(W/2,H*.42+bob,ch,{arms:'chute',rot:Math.sin(t*1.5)*.15,scale:1.35});
   txt('둥실둥실 낙하대',W/2,H*.16,34,'#ff5c8a');
-  const lines=['탭해서 비행기에서 뛰어내리기','낙하산을 펴면 집과 강이 보여요','좌우로 쓸어 바람을 타고 목표로','착지 직전 아래로 당겨 속도 줄이기'];
+  const lines=['탭해서 비행기에서 뛰어내리기','낙하산 아래 펼쳐지는 마을과 강을 살펴봐요','좌우로 쓸어 바람을 타고 목표로','착지 직전 아래로 당겨 속도 줄이기'];
   lines.forEach((l,i)=>txt(l,W/2,H*.6+i*26,15,'#4a3a33'));
   if(Math.sin(t*5)>-.3)txt('탭하면 바로 출발!',W/2,H*.86,22,'#3a6fd8');
 }
@@ -352,9 +356,9 @@ function draw(){
     if(P.state==='landed'){
       const r=P.result;
       if(r.safe){const settle=Math.max(0,1-P.landT/.48),impact=clamp((P.touchSpeed-70)/240,0,1);if(settle>0){ctx.save();ctx.globalAlpha=settle*.42;ell(cx,cy+20,14+(1-settle)*24,4+impact*3,null,'#fff');ctx.restore()}
-        drawChute(cx,cy,P.chute,P.ch,0,1.18);const hop=r.acc>0?Math.max(0,Math.sin(P.landT*9))*7*Math.max(0,1-P.landT/1.5):0;drawChar(cx,cy-hop,P.ch,{arms:r.acc>0?'cheer':'down',scale:1.18,squish:settle>.78})}
+        drawChute(cx,cy,P.chute,P.ch,0,1.55);const hop=r.acc>0?Math.max(0,Math.sin(P.landT*9))*7*Math.max(0,1-P.landT/1.5):0;drawChar(cx,cy-hop,P.ch,{arms:r.acc>0?'cheer':'down',scale:1.55,squish:settle>.78})}
       else{drawChar(cx,cy+8,P.ch,{squish:true,face:'dizzy'});for(let i=0;i<3;i++){const a=t*4+i*2.1;drawStar(cx+Math.cos(a)*20,cy-14+Math.sin(a)*5,5,a)}}
-    }else{drawChute(cx,cy,P.chute,P.ch,rot+(P.state==='chute'?P.bank*.28:0),1.18);drawChar(cx,cy,P.ch,{rot,arms:P.state==='chute'?'chute':'fall',face:P.state==='fall'||P.spin>.3?'wow':'happy',scale:1.18})}
+    }else{drawChute(cx,cy,P.chute,P.ch,rot+(P.state==='chute'?P.bank*.28:0),1.55);drawChar(cx,cy,P.ch,{rot,arms:P.state==='chute'?'chute':'fall',face:P.state==='fall'||P.spin>.3?'wow':'happy',scale:1.55})}
   }
   for(const p of parts){const q=mapView>0?mapProject(p.x,p.y):{x:p.x,y:p.y-camY,scale:1};ctx.globalAlpha=Math.min(1,p.life*2);ell(q.x,q.y,p.s*q.scale,p.s*q.scale,p.c)}ctx.globalAlpha=1;
   for(const p of popups){ctx.globalAlpha=1-p.t/1.1;txt(p.text,p.x,p.y-p.t*40,p.size,p.col)}ctx.globalAlpha=1;
