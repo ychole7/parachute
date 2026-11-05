@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v12-worldmap-graphics">
+<meta name="game-build" content="v13-character-art">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -77,7 +77,7 @@ const input={down:false,x:0,y:0,startX:0,startY:0,flare:0,left:false,right:false
 for(let i=0;i<8;i++)clouds.push({x:Math.random()*400,y:Math.random()*800,s:rnd(.6,1.3)});
 
 function newJump(){
-  const s=G.stage,ch=CHARS[G.jump%3];
+  const s=G.stage,ch=CHARS[(G.jump+2)%3];
   gear=PARACHUTES[gearIndex];weather=WEATHERS[Math.floor(Math.random()*WEATHERS.length)];site=SITES[G.jump%SITES.length];
   const dir=Math.random()<.5?1:-1;
   plane={x:dir>0?-90:W+90,y:PLANE_Y,vx:dir*(150+s*12)};
@@ -203,37 +203,45 @@ function txt(s,x,y,size,col,align='center',stroke=true){
 function ell(x,y,rx,ry,fill,stroke){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke()}}
 
 function drawChar(x,y,ch,o={}){
-  ctx.save();ctx.translate(x,y);ctx.rotate(o.rot||0);ctx.scale(o.scale||1,o.scale||1);if(o.squish)ctx.scale(1.35,.6);
-  const arms={fall:[[14,0,28,-8]],chute:[[12,-6,16,-28]],down:[[13,4,20,14]],cheer:[[12,-4,22,-22]]}[o.arms||'down'][0];
-  for(const sx of[-1,1]){
-    ctx.lineCap='round';ctx.lineWidth=9;ctx.strokeStyle=OL;ctx.beginPath();ctx.moveTo(sx*arms[0],arms[1]);ctx.lineTo(sx*arms[2],arms[3]);ctx.stroke();
-    ctx.lineWidth=5.5;ctx.strokeStyle=ch.body;ctx.stroke();
-  }
-  ell(-7,17,6,4,ch.ear,OL);ell(7,17,6,4,ch.ear,OL);
-  if(ch.kind==='bunny'){for(const sx of[-1,1]){ctx.save();ctx.translate(sx*8,-26);ctx.rotate(sx*.15);ell(0,0,5.5,13,ch.body,OL);ell(0,1,2.5,8,ch.ear);ctx.restore()}}
-  if(ch.kind==='bear'){for(const sx of[-1,1]){ell(sx*13,-13,7,7,ch.body,OL);ell(sx*13,-13,3.5,3.5,ch.ear)}}
-  if(ch.kind==='chick'){ctx.strokeStyle=OL;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-2,-18);ctx.quadraticCurveTo(-6,-28,0,-26);ctx.quadraticCurveTo(4,-30,3,-18);ctx.stroke()}
-  ell(0,0,18,18,ch.body,OL);
+  ctx.save();ctx.translate(x,y);ctx.rotate(o.rot||0);ctx.scale(o.scale||1,o.scale||1);if(o.squish)ctx.scale(1.3,.68);
+  const pose=o.arms||'down',hands={fall:[[-28,-9],[28,-9]],chute:[[-17,-31],[17,-31]],down:[[-20,14],[20,14]],cheer:[[-22,-26],[22,-26]]}[pose];
+  const suit=ch.kind==='bear'?'#e78643':ch.kind==='bunny'?'#83bde8':'#7bc99b';
+  // soft shadow and little flight boots
+  ell(0,29,17,4,'rgba(53,67,61,.16)');
+  for(const sx of[-1,1]){ell(sx*7,22,7,5,ch.kind==='bear'?'#936042':ch.ear,OL);ell(sx*7,22,2.2,1.5,'#fff0cc')}
+  // arms, cuff bands and paws
+  for(let i=0;i<2;i++){const sx=i?1:-1,[hx,hy]=hands[i];ctx.lineCap='round';ctx.lineWidth=11;ctx.strokeStyle=OL;ctx.beginPath();ctx.moveTo(sx*9,-2);ctx.quadraticCurveTo(sx*15,-10,hx,hy);ctx.stroke();ctx.lineWidth=7;ctx.strokeStyle=suit;ctx.stroke();ctx.lineWidth=2.5;ctx.strokeStyle='#ffe1ad';ctx.beginPath();ctx.moveTo(sx*(Math.abs(hx)*.68),hy*.72);ctx.lineTo(sx*(Math.abs(hx)*.68+4),hy*.72);ctx.stroke();ell(hx,hy,5,5,ch.body,OL)}
+  // padded flight suit body with harness and buckle
+  ell(0,7,13,17,OL);ell(0,7,10.5,14,suit);ell(0,-5,7,3,'#ffd89b');
+  ctx.strokeStyle='#704f3c';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-8,-2);ctx.lineTo(7,16);ctx.moveTo(8,-2);ctx.lineTo(-7,16);ctx.stroke();
+  rr(-4,4,8,7,2);ctx.fillStyle='#f6d47e';ctx.fill();ctx.strokeStyle='#704f3c';ctx.lineWidth=1.2;ctx.stroke();
+  // ears behind the head
+  if(ch.kind==='bunny'){for(const sx of[-1,1]){ctx.save();ctx.translate(sx*8,-27);ctx.rotate(sx*.13);ell(0,0,5.5,13,ch.body,OL);ell(0,1,2.5,8,ch.ear);ctx.restore()}}
+  if(ch.kind==='bear'){for(const sx of[-1,1]){ell(sx*13,-17,7,7,ch.body,OL);ell(sx*13,-17,3.5,3.5,ch.ear)}}
+  if(ch.kind==='chick'){ctx.strokeStyle=OL;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-2,-24);ctx.quadraticCurveTo(-6,-34,0,-31);ctx.quadraticCurveTo(5,-35,3,-23);ctx.stroke()}
+  ell(0,-15,17,17,ch.body,OL);
   const f=o.face||'happy';ctx.fillStyle=OL;ctx.strokeStyle=OL;ctx.lineWidth=2;
-  if(f==='dizzy'){for(const sx of[-6,6]){ctx.beginPath();ctx.moveTo(sx-3,-5);ctx.lineTo(sx+3,1);ctx.moveTo(sx+3,-5);ctx.lineTo(sx-3,1);ctx.stroke()}}
-  else if(f==='wow'){for(const sx of[-6,6]){ell(sx,-2,3.3,3.8,OL);ell(sx+1,-3.2,1.1,1.1,'#fff')}}
-  else{for(const sx of[-6,6])ell(sx,-2,2.4,2.8,OL)}
-  ell(-11,5,3.5,2.2,'rgba(255,120,150,.45)');ell(11,5,3.5,2.2,'rgba(255,120,150,.45)');
-  if(ch.kind==='chick'){ctx.fillStyle='#ff9f1c';ctx.beginPath();ctx.moveTo(-4,3);ctx.lineTo(4,3);ctx.lineTo(0,8);ctx.closePath();ctx.fill()}
-  else if(f==='wow'){ell(0,6,2.6,3.2,OL)}
-  else{ctx.beginPath();ctx.arc(-2,5,2,0,Math.PI);ctx.arc(2,5,2,0,Math.PI);ctx.stroke()}
+  if(f==='dizzy'){for(const sx of[-6,6]){ctx.beginPath();ctx.moveTo(sx-2.5,-19);ctx.lineTo(sx+2.5,-14);ctx.moveTo(sx+2.5,-19);ctx.lineTo(sx-2.5,-14);ctx.stroke()}}
+  else if(f==='wow'){for(const sx of[-6,6]){ell(sx,-17,3,3.8,OL);ell(sx+1,-18.5,1.1,1.1,'#fff')}}
+  else{for(const sx of[-6,6]){ell(sx,-17,2.5,3,OL);ell(sx+.8,-18,1,1,'#fff')}}
+  ell(-10,-10,3.2,2,'rgba(255,120,150,.48)');ell(10,-10,3.2,2,'rgba(255,120,150,.48)');
+  if(ch.kind==='chick'){ctx.fillStyle='#ff9f1c';ctx.beginPath();ctx.moveTo(-4,-12);ctx.lineTo(4,-12);ctx.lineTo(0,-8);ctx.closePath();ctx.fill()}
+  else if(f==='wow')ell(0,-10,2.5,3,OL);
+  else{ctx.beginPath();ctx.arc(-2,-10,2,0,Math.PI);ctx.arc(2,-10,2,0,Math.PI);ctx.stroke()}
+  // bear pilot goggles add the defining silhouette on the first course
+  if(ch.kind==='bear'){ctx.save();ctx.translate(0,-29);ctx.fillStyle='#6c4934';ctx.strokeStyle=OL;ctx.lineWidth=1.5;rr(-12,-3,24,8,4);ctx.fill();ctx.stroke();ell(-6,0,4,3,'#bde9f3','#6c4934');ell(6,0,4,3,'#bde9f3','#6c4934');ctx.restore()}
   ctx.restore();
 }
 function drawChute(x,y,p,ch,rot,scale=1){
   if(p<=0)return;const e=easeOut(p);ctx.save();ctx.translate(x,y);ctx.rotate(rot*.6);
   const pull=P?.state==='chute'?P.flare:0;ctx.scale(scale*1.5*(gear?.wing||1)*(1-.1*pull),scale*.9*(1+.08*pull));const R=58*e,cy=-28-58*e;
-  ctx.strokeStyle='rgba(74,58,51,.55)';ctx.lineWidth=1.2;
-  for(const k of[-1,-.45,.45,1]){ctx.beginPath();ctx.moveTo(Math.sign(k)*15,-26);ctx.lineTo(k*R,cy);ctx.stroke()}
+  ctx.strokeStyle='rgba(74,58,51,.48)';ctx.lineWidth=1.3;
+  for(const k of[-1,-.68,-.34,.34,.68,1]){ctx.beginPath();ctx.moveTo(Math.sign(k)*11,-2);ctx.quadraticCurveTo(k*R*.48,cy+18,k*R,cy);ctx.stroke()}
   const n=gear?.panels||6;
-  for(let i=0;i<n;i++){const a0=Math.PI+i*Math.PI/n,a1=a0+Math.PI/n;ctx.beginPath();ctx.moveTo(0,cy);ctx.arc(0,cy,R,a0,a1);ctx.closePath();ctx.fillStyle=ch.chute[i%2];ctx.fill()}
-  ctx.fillStyle='rgba(0,0,0,.08)';for(let i=0;i<n;i++){ctx.beginPath();ctx.arc(-R+R/n+i*2*R/n,cy,R/n,0,Math.PI);ctx.fill()}
-  ctx.beginPath();ctx.arc(0,cy,R,Math.PI,0);ctx.strokeStyle=OL;ctx.lineWidth=2;ctx.stroke();
-  ell(0,cy-R,4*e,4*e,ch.chute[0],OL);
+  for(let i=0;i<n;i++){const a0=Math.PI+i*Math.PI/n,a1=a0+Math.PI/n;ctx.beginPath();ctx.moveTo(0,cy);ctx.arc(0,cy,R,a0,a1);ctx.closePath();const grad=ctx.createLinearGradient(-R,cy-R,R,cy+8);grad.addColorStop(0,ch.chute[i%2]);grad.addColorStop(.52,i%2?'#fff7dc':ch.chute[0]);grad.addColorStop(1,ch.chute[i%2]);ctx.fillStyle=grad;ctx.fill();ctx.strokeStyle='rgba(105,73,55,.25)';ctx.lineWidth=.8;ctx.stroke()}
+  ctx.save();ctx.beginPath();ctx.arc(0,cy,R,Math.PI,0);ctx.clip();const sheen=ctx.createLinearGradient(0,cy-R,0,cy);sheen.addColorStop(0,'rgba(255,255,255,.4)');sheen.addColorStop(.62,'rgba(255,255,255,0)');sheen.addColorStop(1,'rgba(95,63,47,.12)');ctx.fillStyle=sheen;ctx.fillRect(-R,cy-R,R*2,R);ctx.restore();
+  ctx.beginPath();ctx.arc(0,cy,R,Math.PI,0);ctx.strokeStyle='#684a3e';ctx.lineWidth=2.5;ctx.stroke();ctx.beginPath();ctx.arc(0,cy,R*.96,Math.PI,0);ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=1;ctx.stroke();
+  ell(0,cy-R,4*e,4*e,'#fff2bb','#684a3e');
   ctx.restore();
 }
 function drawPlane(x,y,dir){
@@ -381,7 +389,7 @@ function drawCard(){
 }
 function drawTitle(){
   for(const c of clouds)drawCloud((c.x+t*12*c.s)%(W+120)-60,c.y%H,c.s);
-  const bob=Math.sin(t*2)*8,ch=CHARS[Math.floor(t/2.5)%3];
+  const bob=Math.sin(t*2)*8,ch=CHARS[(Math.floor(t/2.5)+2)%3];
   drawChute(W/2,H*.42+bob,1,ch,Math.sin(t*1.5)*.15,1.42);drawChar(W/2,H*.42+bob,ch,{arms:'chute',rot:Math.sin(t*1.5)*.15,scale:1.35});
   txt('둥실둥실 낙하대',W/2,H*.16,34,'#ff5c8a');
   const lines=['산과 강, 학교와 아파트가 이어진 하나의 도시','착지 목표만 운동장 → 강변 부표 → 옥상으로 이동','코스가 바뀌어도 도시는 그대로 이어져요'];
