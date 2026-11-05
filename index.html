@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v9-three-site-course">
+<meta name="game-build" content="v10-one-city-map">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -36,9 +36,9 @@ const PARACHUTES=[
   {name:'스피드 캐노피',desc:'빠르고 민첩하지만 바람에 약해요',control:1.08,wind:1.22,fall:1.12,flare:0.84,open:0.86,wing:0.88,panels:5}
 ];
 const SITES=[
-  {name:'초등학교 운동장',icon:'⚑',kind:'school',target:1.12,wind:0.72,moving:false,focus:'넓은 표적 · 기본 착지'},
-  {name:'호수 부표',icon:'◉',kind:'lake',target:0.7,wind:1.38,moving:true,focus:'이동 표적 · 횡풍 보정'},
-  {name:'도심 아파트 옥상',icon:'⌂',kind:'roof',target:0.58,wind:1.28,moving:false,focus:'좁은 표적 · 건물 돌풍'}
+  {name:'초등학교 운동장',icon:'⚑',kind:'school',x:.22,target:1.12,wind:0.72,moving:false,focus:'넓은 표적 · 기본 착지'},
+  {name:'강변 부표',icon:'◉',kind:'lake',x:.79,target:0.7,wind:1.38,moving:true,focus:'이동 표적 · 횡풍 보정'},
+  {name:'아파트 옥상',icon:'⌂',kind:'roof',x:.56,target:0.58,wind:1.28,moving:false,focus:'좁은 표적 · 건물 돌풍'}
 ];
 const WEATHERS=[
   {name:'맑음',icon:'☀',wind:0.88,fall:1,dive:0.96,flare:1,open:0.96,gust:0.72,kind:'clear'},
@@ -85,12 +85,11 @@ function newJump(){
   if(site.kind==='roof')gusts.push({alt:112,dir:Math.random()<.5?-1:1,power:78*weather.gust,width:48,charge:0,mastered:false});
   wind={v:baseWind,current:baseWind,phase:rnd(0,Math.PI*2),active:null,gusts};
   const tw=clamp(Math.max(150-(s-1)*11,76)*site.target,56,160);
-  target={x:W*rnd(.16,.84),w:tw,vx:(site.moving||s>=3)?(site.moving?rnd(20,38):35+s*7)*(Math.random()<.5?-1:1):0};
+  target={x:clamp(W*site.x+rnd(-W*.035,W*.035),W*.12,W*.88),w:tw,vx:(site.moving||s>=3)?(site.moving?rnd(20,38):35+s*7)*(Math.random()<.5?-1:1):0};
   P={x:plane.x,y:START_Y,vx:0,vy:0,ch,state:'plane',chute:0,openAlt:null,stars:0,rot:0,bank:0,spin:0,flare:0,flareGood:false,gustPts:0,landT:0,result:null};
   stars=[];for(let i=0;i<10+s*2;i++)stars.push({x:rnd(30,W-30),y:rnd(600,GROUND-500),got:false});
   birds=[];if(s>=2)for(let i=0;i<Math.min(s,6);i++)birds.push({x:Math.random()*W,y:rnd(900,GROUND-500),vx:rnd(60,120)*(Math.random()<.5?-1:1),hit:false});
-  scenery=[];
-  for(let i=0;i<42;i++){const n=i%7;scenery.push({kind:site.kind==='lake'?'island':site.kind==='roof'?'building':n===0?'house':n===1?'mountain':n===2?'building':'tree',x:rnd(18,W-18),y:rnd(220,GROUND-130),size:rnd(site.kind==='roof'?1.05:.65,site.kind==='roof'?1.65:1.2),tone:i%3})}
+  if(!scenery.length){for(let i=0;i<54;i++){let kind,x,y,size;if(i<10){kind='mountain';x=rnd(W*.04,W*.96);y=rnd(GROUND-2700,GROUND-1500);size=rnd(1.05,1.65)}else if(i<27){kind='building';x=rnd(W*.48,W*.94);y=rnd(GROUND-1550,GROUND-260);size=rnd(1.05,1.65)}else if(i<39){kind='house';x=rnd(W*.06,W*.62);y=rnd(GROUND-1800,GROUND-180);size=rnd(.75,1.2)}else{kind='tree';x=rnd(W*.04,W*.96);y=rnd(GROUND-2100,GROUND-120);size=rnd(.7,1.35)}scenery.push({kind,x,y,size,tone:i%3})}}
   clouds=[];for(let i=0;i<16;i++)clouds.push({x:Math.random()*W,y:rnd(260,GROUND-600),s:rnd(.6,1.4)});
   camY=0;G.phase='play';
 }
@@ -248,44 +247,31 @@ function mapProject(wx,wy){
 }
 function drawAerialMap(amount=1){
   ctx.save();ctx.globalAlpha=amount;
-  const g=ctx.createLinearGradient(0,0,0,H);
-  if(site.kind==='lake'){g.addColorStop(0,'#79d9eb');g.addColorStop(.55,'#32b9d0');g.addColorStop(1,'#168cac')}
-  else if(site.kind==='roof'){g.addColorStop(0,'#d7e0e2');g.addColorStop(.55,'#adbcc1');g.addColorStop(1,'#89999e')}
-  else{g.addColorStop(0,'#b7df9d');g.addColorStop(.55,'#8bd275');g.addColorStop(1,'#66bd68')}ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  if(site.kind==='lake'){ctx.save();ctx.globalAlpha=.22;ctx.strokeStyle='#e2fbff';ctx.lineWidth=2;for(let i=0;i<18;i++){const y=(i*67+t*18)%H,x=(i*113)%W;ctx.beginPath();ctx.ellipse(x,y,18+(i%4)*8,3,0,0,Math.PI*2);ctx.stroke()}ctx.restore();}
-  if(site.kind==='roof'){ctx.save();ctx.globalAlpha=.28;ctx.strokeStyle='#f6f5ef';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(W*.08,H*.18);ctx.lineTo(W*.9,H*.82);ctx.moveTo(W*.95,H*.2);ctx.lineTo(W*.08,H*.72);ctx.stroke();ctx.globalAlpha=.32;ctx.lineWidth=2;for(let i=0;i<7;i++){const x=(i%3)*W*.42+W*.08,y=(Math.floor(i/3))*H*.3+H*.12;rr(x,y,W*.24,H*.16,5);ctx.fillStyle=['#9eafb2','#bac8ca','#8d9ea3'][i%3];ctx.fill();ctx.strokeStyle='rgba(255,255,255,.5)';ctx.stroke()}ctx.restore();}
-  // 밭과 숲이 흐르며 화면 아래로 다가오도록 그려 지면의 깊이를 만든다.
-  if(site.kind==='school')for(let i=0;i<7;i++){
-    const y=H*(i/6),scale=.55+i*.12,x=(i%2?W*.18:W*.82)+Math.sin(i*2+P.y*.00045)*W*.08;
-    ctx.save();ctx.globalAlpha=.12;ell(x,y,W*.24*scale,H*.055*scale,i%2?'#f8e7a8':'#318b55');ctx.restore();
-  }
-  // 돌풍 고도를 미리 보여줘, 바람을 읽고 방향을 준비할 수 있게 한다.
-  if(P.state==='chute'&&wind.gusts){for(const gust of wind.gusts){if(gust.entered)continue;const wy=GROUND-22-gust.alt/MAXALT*(GROUND-22-START_Y);if(wy<=P.y)continue;const q=mapProject(W/2,wy);if(q.y<72||q.y>H*.88)continue;ctx.save();ctx.globalAlpha=.28;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.setLineDash([8,8]);ctx.beginPath();ctx.moveTo(W*.16,q.y);ctx.quadraticCurveTo(W*.5,q.y+Math.sin(t*2+gust.alt)*10,W*.84,q.y);ctx.stroke();ctx.setLineDash([]);for(let i=0;i<3;i++){const ax=W*(.34+i*.16),ay=q.y+Math.sin(t*2+i)*4;ctx.save();ctx.translate(ax,ay);ctx.rotate(gust.dir>0?0:Math.PI);ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(-3,-5);ctx.lineTo(-3,5);ctx.closePath();ctx.fill();ctx.restore()}txt('돌풍 예상',W*.5,q.y-13,11,'#fff','center',false);ctx.restore()}}
-  // 학교로 향할 때는 강과 운동장 트랙이 지면의 방향을 알려준다.
-  if(site.kind==='school'){const phase=P.y*.0011;ctx.lineCap='round';ctx.lineJoin='round';for(const [width,color] of [[W*.25,'#d5e7a2'],[W*.19,'#55c7d1'],[W*.14,'#79dce2']]){ctx.beginPath();for(let y=-30;y<=H+40;y+=24){const x=W*.5+Math.sin(y/H*5+phase)*W*.25+Math.sin(y/H*2.2-phase*.5)*W*.08;if(y===-30)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke()}}
-  for(const item of scenery){
-    if(item.y<P.y+35)continue;const p=mapProject(item.x,item.y);if(p.y<-50||p.y>H+55)continue;
-    const z=item.size*(.35+1.1*(1-p.depth));ctx.save();ctx.translate(p.x,p.y);ctx.scale(z,z);
-    if(item.kind==='island'){ell(0,7,28,10,'rgba(0,67,94,.22)');ell(0,0,24,8,'#dacb9d','#9a9274');ell(-4,-3,14,7,'#73b96b');ell(7,-4,8,6,'#8acb72')}
-    else if(item.kind==='mountain'){
-      ell(0,8,24,8,'rgba(45,94,57,.2)');ctx.beginPath();ctx.moveTo(-26,8);ctx.lineTo(-8,-24);ctx.lineTo(2,-10);ctx.lineTo(14,-31);ctx.lineTo(29,8);ctx.closePath();ctx.fillStyle=['#8aab83','#9cae91','#7f9d7b'][item.tone];ctx.fill();ctx.strokeStyle='rgba(70,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();ctx.beginPath();ctx.moveTo(-8,-24);ctx.lineTo(-3,-16);ctx.lineTo(1,-19);ctx.lineTo(7,-9);ctx.lineTo(2,-10);ctx.closePath();ctx.fillStyle='#f7f3df';ctx.fill();
-    }else if(item.kind==='building'){
-      ell(2,9,18,7,'rgba(45,94,57,.18)');rr(-13,-24,26,34,3);ctx.fillStyle=['#f5d7ae','#c6e1ee','#f3c9cb'][item.tone];ctx.fill();ctx.strokeStyle='rgba(85,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();for(let yy=-18;yy<2;yy+=9)for(let xx=-8;xx<8;xx+=9){rr(xx-2,yy,4,5,1);ctx.fillStyle='#8bd2dd';ctx.fill()}
-    }else if(item.kind==='house'){
-      ell(2,9,19,7,'rgba(45,94,57,.18)');rr(-16,-6,32,20,3);ctx.fillStyle=['#fff0d5','#f7d4bd','#dce8ff'][item.tone];ctx.fill();ctx.strokeStyle='rgba(85,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();
-      ctx.beginPath();ctx.moveTo(-20,-5);ctx.lineTo(0,-19);ctx.lineTo(20,-5);ctx.closePath();ctx.fillStyle=['#df8a70','#bd7896','#8498ca'][item.tone];ctx.fill();ctx.stroke();
-      rr(-3,3,6,11,2);ctx.fillStyle='#a87554';ctx.fill();rr(-12,-2,5,6,1);ctx.fillStyle='#94d7e5';ctx.fill();rr(7,-2,5,6,1);ctx.fill();
-    }else{
-      ell(0,8,14,6,'rgba(45,94,57,.18)');ell(0,-1,11,12,'#398b55','#2f7549');ell(-7,-6,8,9,'#58ad64');ell(6,-8,8,9,'#70bf68');ell(0,-13,7,8,'#83ce74');
-    }
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#c7e9a8');g.addColorStop(.5,'#9bd879');g.addColorStop(1,'#70bf68');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // One continuous valley: mountains, neighborhoods, school grounds and the river remain in view together.
+  ctx.save();ctx.globalAlpha=.52;for(let i=0;i<6;i++){const x=W*(i/5),base=H*(.18+(i%2)*.035),peak=H*(.04+(i%3)*.018);ctx.beginPath();ctx.moveTo(x-W*.12,base);ctx.lineTo(x,peak);ctx.lineTo(x+W*.14,base);ctx.closePath();ctx.fillStyle=['#9ab49a','#87a88c','#a8bf9a'][i%3];ctx.fill()}ctx.restore();
+  // A road and the river wind through every district, so each landing stays part of the same place.
+  const phase=P.y*.0011;
+  ctx.lineCap='round';ctx.lineJoin='round';
+  for(const [width,color] of [[W*.29,'#d9e6a8'],[W*.23,'#4ebdcc'],[W*.17,'#80d9dd']]){ctx.beginPath();for(let y=-30;y<=H+40;y+=20){const x=W*.51+Math.sin(y/H*4.6+phase)*W*.25+Math.sin(y/H*2.1-phase*.5)*W*.07;if(y===-30)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke()}
+  ctx.save();ctx.globalAlpha=.8;ctx.strokeStyle='#ead9a9';ctx.lineWidth=W*.055;ctx.beginPath();for(let y=-20;y<=H+30;y+=24){const x=W*.18+Math.sin(y/H*3.8+phase*.7)*W*.14;if(y===-20)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=2;ctx.setLineDash([10,9]);ctx.stroke();ctx.restore();
+  // School track sits in the western neighborhood; the river buoy is in a widened bend.
+  const school=mapProject(W*.22,GROUND-22),lake=mapProject(W*.79,GROUND-250);
+  ctx.save();ctx.globalAlpha=.82;ctx.fillStyle='#78c979';ell(school.x,school.y,W*.13,23,'#72c46a');ctx.strokeStyle='#e89078';ctx.lineWidth=4;for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(school.x,school.y,W*(.085+i*.018),12+i*3,0,0,Math.PI*2);ctx.stroke()}ctx.fillStyle='#9cdd82';ctx.fillRect(school.x-W*.04,school.y-5,W*.08,10);ctx.restore();
+  ctx.save();ctx.globalAlpha=.88;ell(lake.x,lake.y,W*.17,30,'#31b6ca','#d8e5a4');ell(lake.x,lake.y,W*.125,21,'#61cbd3');for(let i=0;i<5;i++){const x=lake.x-W*.13+i*W*.065;ell(x,lake.y+Math.sin(i*2)*20,6,3,'#f4e8ba')}ctx.restore();
+  // Apartment blocks, houses and tree clusters are grouped by district rather than scattered at random.
+  for(const item of scenery){if(item.y<P.y+35)continue;const p=mapProject(item.x,item.y);if(p.y<-55||p.y>H+65)continue;const z=item.size*(.35+1.1*(1-p.depth));ctx.save();ctx.translate(p.x,p.y);ctx.scale(z,z);
+    if(item.kind==='mountain'){ell(0,8,24,8,'rgba(45,94,57,.2)');ctx.beginPath();ctx.moveTo(-26,8);ctx.lineTo(-8,-24);ctx.lineTo(2,-10);ctx.lineTo(14,-31);ctx.lineTo(29,8);ctx.closePath();ctx.fillStyle=['#8aab83','#9cae91','#7f9d7b'][item.tone];ctx.fill();ctx.strokeStyle='rgba(70,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();ctx.beginPath();ctx.moveTo(-8,-24);ctx.lineTo(-3,-16);ctx.lineTo(1,-19);ctx.lineTo(7,-9);ctx.lineTo(2,-10);ctx.closePath();ctx.fillStyle='#f7f3df';ctx.fill()}
+    else if(item.kind==='building'){ell(2,9,20,7,'rgba(45,94,57,.2)');rr(-14,-30,28,40,3);ctx.fillStyle=['#f5d7ae','#c6e1ee','#f3c9cb'][item.tone];ctx.fill();ctx.strokeStyle='rgba(85,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();for(let yy=-24;yy<2;yy+=9)for(let xx=-9;xx<9;xx+=10){rr(xx-2,yy,4,5,1);ctx.fillStyle='#8bd2dd';ctx.fill()}}
+    else if(item.kind==='house'){ell(2,9,19,7,'rgba(45,94,57,.18)');rr(-16,-6,32,20,3);ctx.fillStyle=['#fff0d5','#f7d4bd','#dce8ff'][item.tone];ctx.fill();ctx.strokeStyle='rgba(85,91,67,.45)';ctx.lineWidth=1.5;ctx.stroke();ctx.beginPath();ctx.moveTo(-20,-5);ctx.lineTo(0,-19);ctx.lineTo(20,-5);ctx.closePath();ctx.fillStyle=['#df8a70','#bd7896','#8498ca'][item.tone];ctx.fill();ctx.stroke()}
+    else{ell(0,8,14,6,'rgba(45,94,57,.18)');ell(0,-1,11,12,'#398b55','#2f7549');ell(-7,-6,8,9,'#58ad64');ell(6,-8,8,9,'#70bf68');ell(0,-13,7,8,'#83ce74')}
     ctx.restore();
   }
-  if(site.kind==='school'){ctx.save();ctx.globalAlpha=.28;ctx.strokeStyle='#ffe6c5';ctx.lineWidth=4;for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(W*.5,H*.66,W*(.28+i*.045),H*(.09+i*.02),0,0,Math.PI*2);ctx.stroke()}ctx.restore()}
-  // 지면 위를 흐르는 구름 그림자
+  // Forecast gust bands are placed over the shared map and move toward the player with perspective.
+  if(P.state==='chute'&&wind.gusts){for(const gust of wind.gusts){if(gust.entered)continue;const wy=GROUND-22-gust.alt/MAXALT*(GROUND-22-START_Y);if(wy<=P.y)continue;const q=mapProject(W/2,wy);if(q.y<72||q.y>H*.88)continue;ctx.save();ctx.globalAlpha=.28;ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.setLineDash([8,8]);ctx.beginPath();ctx.moveTo(W*.16,q.y);ctx.quadraticCurveTo(W*.5,q.y+Math.sin(t*2+gust.alt)*10,W*.84,q.y);ctx.stroke();ctx.setLineDash([]);for(let i=0;i<3;i++){const ax=W*(.34+i*.16),ay=q.y+Math.sin(t*2+i)*4;ctx.save();ctx.translate(ax,ay);ctx.rotate(gust.dir>0?0:Math.PI);ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(-3,-5);ctx.lineTo(-3,5);ctx.closePath();ctx.fill();ctx.restore()}txt('돌풍 예상',W*.5,q.y-13,11,'#fff','center',false);ctx.restore()}}
   ctx.save();ctx.globalAlpha=.1;for(let i=0;i<4;i++){const x=(i*W*.31+Math.sin(t*.22+i)*18)%W;ell(x,H*(.12+i*.22),W*.13,12,'#fff')}ctx.restore();
   ctx.restore();
 }
-
 function drawTarget(){
   const tp=mapProject(target.x,GROUND-22),w=target.w*tp.scale,y=tp.y;
   // 목적지 모양을 구분해 다음 착륙 장소를 한눈에 읽게 한다.
@@ -377,7 +363,7 @@ function drawTitle(){
   const bob=Math.sin(t*2)*8,ch=CHARS[Math.floor(t/2.5)%3];
   drawChute(W/2,H*.42+bob,1,ch,Math.sin(t*1.5)*.15,1.42);drawChar(W/2,H*.42+bob,ch,{arms:'chute',rot:Math.sin(t*1.5)*.15,scale:1.35});
   txt('둥실둥실 낙하대',W/2,H*.16,34,'#ff5c8a');
-  const lines=['캐릭터와 낙하산마다 조종 감각이 달라요','운동장 훈련부터 부표와 도심 옥상까지','세 코스에서 바람 조종과 착지를 익혀요'];
+  const lines=['산과 강, 학교와 아파트가 이어진 하나의 도시','착지 목표만 운동장 → 강변 부표 → 옥상으로 이동','코스가 바뀌어도 도시는 그대로 이어져요'];
   lines.forEach((l,i)=>txt(l,W/2,H*.59+i*25,14,'#4a3a33'));
   rr(W/2-138,H*.73,276,48,18);ctx.fillStyle='rgba(255,248,231,.96)';ctx.fill();ctx.strokeStyle='rgba(142,99,62,.35)';ctx.lineWidth=1.5;ctx.stroke();
   txt(`낙하산 선택  ·  ${PARACHUTES[gearIndex].name}  ▾`,W/2,H*.73+17,15,'#604735','center',false);txt(PARACHUTES[gearIndex].desc,W/2,H*.73+35,10,'#8b7565','center',false);
