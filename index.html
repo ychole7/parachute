@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v29-touchdown-alignment">
+<meta name="game-build" content="v30-concept-art">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -15,9 +15,7 @@ canvas{display:block;width:100vw;height:100vh;height:100dvh}
 <canvas id="c"></canvas>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
-const bearArt=new Image();bearArt.src='assets/characters/bear-back.png';
 const bearParachuteRigArt=new Image();bearParachuteRigArt.src='assets/characters/bear-parachute-rig.png';
-const canopyArt=new Image();canopyArt.src='assets/parachutes/orange-cream-canopy.png';
 let W,H,DPR;
 function resize(){
   DPR=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
