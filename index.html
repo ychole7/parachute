@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v39-landing-perspective">
+<meta name="game-build" content="v40-three-landing-course">
 <title>둥실둥실 낙하대 · 표적 착지</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -36,8 +36,9 @@ const PARACHUTES=[
   {name:'주황 아이보리 캐노피',desc:'기본 캐노피',control:1,wind:1,fall:1,flare:1,open:1,wing:1,panels:6}
 ];
 const SITES=[
-  {name:'섬의 초원',icon:'✿',kind:'meadow',x:.52,mapU:.52,mapV:.68,targetW:76,wind:1,focus:'표적 한가운데에 착지'},
-  {name:'꼬마 목장',icon:'🐄',kind:'pasture',x:.52,mapU:.16,mapV:.75,targetW:66,wind:.92,focus:'울타리 안 표적에 착지'}
+  {name:'목장 운동장',icon:'🐄',kind:'pasture',x:.52,mapU:.16,mapV:.75,targetW:76,wind:.92,focus:'넓은 울타리 안 표적에 착지'},
+  {name:'강변 부표',icon:'🛟',kind:'buoy',x:.52,mapU:.12,mapV:.57,targetW:54,wind:1.16,moveAmp:.065,moveRate:1.15,focus:'좌우로 움직이는 부표에 착지'},
+  {name:'옥상 착륙장',icon:'🏠',kind:'roof',x:.52,mapU:.75,mapV:.54,targetW:58,wind:1.08,focus:'좁은 옥상 표적에 착지'}
 ];
 const WEATHERS=[
   {name:'맑음',icon:'☀',wind:0.9,fall:1,dive:0.96,flare:1,open:0.96,gust:0.72,kind:'clear'},
@@ -66,7 +67,7 @@ const DANGER_ALT=(()=>{
 function dangerThreshold(){if(!weather||!gear||!P)return DANGER_ALT;const factor=weather.dive*weather.fall*gear.fall*P.ch.fall*weather.open*gear.open/(Math.max(.5,weather.flare*gear.flare*P.ch.flare));return clamp(Math.round(DANGER_ALT*factor),120,300)}
 
 // ---------- 상태 ----------
-let G={stage:1,jump:0,total:0,phase:'title'};
+let G={stage:1,jump:0,total:0,phase:'title',routeStars:[0,0,0],routePoints:0};
 let P,plane,target,wind,weather,gear,site,stars=[],clouds=[],parts=[],popups=[];
 let camY=0,t=0;
 const input={down:false,x:0,y:0,startX:0,startY:0,flare:0,left:false,right:false};
@@ -74,18 +75,22 @@ for(let i=0;i<8;i++)clouds.push({x:Math.random()*400,y:Math.random()*800,s:rnd(.
 
 function newJump(){
   const s=G.stage,ch=CHARS[0];
-  gear=PARACHUTES[0];weather=WEATHERS[Math.floor(Math.random()*WEATHERS.length)];site=SITES[(G.stage-1)%SITES.length];
+  gear=PARACHUTES[0];weather=WEATHERS[Math.floor(Math.random()*WEATHERS.length)];site=SITES[G.jump%SITES.length];
   const dir=Math.random()<.5?1:-1;
   plane={x:dir>0?W*.12:W*.88,y:PLANE_Y,vx:dir*(150+s*12)};
   const baseWind=(Math.random()<.5?-1:1)*Math.min(32+s*17,115)*rnd(.75,1.15)*site.wind;
   const gusts=[{alt:520,dir:Math.random()<.5?-1:1,power:48*weather.gust,width:105,charge:0,mastered:false},{alt:270,dir:Math.random()<.5?-1:1,power:62*weather.gust,width:82,charge:0,mastered:false}];
   wind={v:baseWind,current:baseWind,phase:rnd(0,Math.PI*2),active:null,gusts};
   const tw=site.targetW||76;
-  target={x:W*(site.x??.52),w:tw,vx:0};
+  const targetX=W*(site.x??.52);target={x:targetX,baseX:targetX,w:tw,vx:0,phase:rnd(0,Math.PI*2),moveAmp:site.moveAmp?W*site.moveAmp:0,moveRate:site.moveRate||0};
   P={x:plane.x,y:START_Y,vx:0,vy:0,ch,state:'plane',chute:0,openAlt:null,stars:0,rot:0,bank:0,spin:0,flare:0,flareGood:false,flareAt:null,gustPts:0,landT:0,result:null};
   stars=[];for(let i=0;i<10+s*2;i++)stars.push({x:rnd(30,W-30),y:rnd(600,GROUND-500),got:false});
   clouds=[];for(let i=0;i<16;i++)clouds.push({x:Math.random()*W,y:rnd(260,GROUND-600),s:rnd(.6,1.4)});
   camY=0;G.phase='play';
+}
+function targetFutureX(seconds=0){
+  if(!target||site?.kind!=='buoy')return target?.x??0;
+  return clamp(target.baseX+Math.sin((t+seconds)*target.moveRate+target.phase)*target.moveAmp,target.w/2,W-target.w/2);
 }
 function alt(y){return Math.max(0,Math.round(surfToAlt(GROUND-22-y)))}
 function burst(x,y,c,n){for(let i=0;i<n;i++)parts.push({x,y,vx:rnd(-160,160),vy:rnd(-260,-40),life:rnd(.4,.8),c,s:rnd(2,4)})}
@@ -101,11 +106,11 @@ function land(){
   const d=Math.abs(P.x-target.x);
   const soft=s&&P.flareGood&&P.vy<120;
   let acc=0,label;
-  if(!s)label=site.kind==='pasture'?'건초더미에 퐁당!':'아이고, 꽈당!';
+  if(!s)label=site.kind==='pasture'?'울타리 밖에 착지!':site.kind==='buoy'?'부표를 놓쳤어요!':site.kind==='roof'?'옥상 밖으로 벗어났어요!':'아이고, 꽈당!';
   else if(d<target.w*.075){acc=100;label='퍼펙트!'}
   else if(d<target.w*.28){acc=60;label='좋아요!'}
   else if(d<target.w*.5){acc=30;label='아슬아슬!'}
-  else label='풀밭 착지';
+  else label=site.kind==='buoy'?'부표를 놓쳤어요':site.kind==='roof'?'옥상 표적을 벗어났어요':'풀밭 착지';
   const bold=(s&&acc>0&&P.openAlt<BONUS_ALT)?Math.round(clamp((BONUS_ALT-P.openAlt)/Math.max(40,BONUS_ALT-dangerThreshold())*100,0,100)):0;
   const starPts=P.stars*10,windPts=P.gustPts||0;
   const multiplier=s&&P.openAlt!==null&&P.openAlt<BONUS_ALT?1.5:1;
@@ -114,13 +119,14 @@ function land(){
   if(s&&acc>0){try{const old=localStorage.getItem('parachute-best-cm');bestCM=old===null?null:Number(old);newBest=bestCM===null||missCM<bestCM;if(newBest){bestCM=missCM;localStorage.setItem('parachute-best-cm',String(bestCM))}}catch(e){bestCM=missCM}}
   const pts=s?Math.round((acc+starPts+windPts+(soft&&acc>0?20:0))*multiplier)+Math.min(bold,100):Math.floor((starPts+windPts)/2);
   const rating=!s?0:(acc===100&&soft?3:acc===100?2:acc>0?1:0);
+  G.routeStars[G.jump%SITES.length]=rating;G.routePoints+=pts;
   P.result={safe:s,soft,rating,softPts:soft&&acc>0?20:0,acc,bold:Math.min(bold,100),starPts,windPts,pts,label,missCM,bestCM,newBest,multiplier,onMat:s&&acc>0};
   P.state='landed';P.vx=0;P.vy=0;P.landT=0;G.total+=pts;
   if(!s){sfx(160,.35,'sawtooth',.12,-100);buzz(120);burst(P.x,P.y+18,site.kind==='pasture'?'#e6c56e':'#a0794f',14);if(site.kind==='pasture')pop('음메~!',W/2,H*.42-52,'#806743',22)}
   else if(acc===100){[660,880,1100].forEach((f,i)=>setTimeout(()=>sfx(f,.18,'triangle',.14),i*90));burst(P.x,P.y,'#ffd84d',soft?30:20);buzz(soft?55:40);if(soft)pop('사뿐! +20',W/2,H*.42-52,'#ff8fab',22)}
   else{sfx(soft?780:660,.15,'triangle',.12);burst(P.x,P.y+10,soft?'#ffe9a8':'#ffffff',soft?20:10);if(soft&&acc>0)pop('사뿐! +20',W/2,H*.42-52,'#ff8fab',22)}
 }
-function next(){G.jump++;if(G.jump%3===0)G.stage++;newJump()}
+function next(){const routeEnd=(G.jump+1)%SITES.length===0;G.jump++;if(routeEnd){G.stage++;G.routeStars=[0,0,0];G.routePoints=0}newJump()}
 
 // ---------- 업데이트 ----------
 function update(dt){
@@ -128,6 +134,7 @@ function update(dt){
   for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=400*dt;p.life-=dt}parts=parts.filter(p=>p.life>0);
   for(const p of popups)p.t+=dt;popups=popups.filter(p=>p.t<1.1);
   if(G.phase!=='play')return;
+  if(site?.kind==='buoy'&&target){const now=targetFutureX(0),ahead=targetFutureX(.02);target.x=now;target.vx=(ahead-now)/.02}
   plane.x+=plane.vx*dt;
   if(P.state==='plane'){
     if(plane.vx>0&&plane.x>W+90)plane.x=-90;if(plane.vx<0&&plane.x<-90)plane.x=W+90;
@@ -286,7 +293,8 @@ function islandCamera(){
   return {iw,ih,baseScale,drawW,drawH,left,top,zoom,anchorY};
 }
 function mapImagePoint(wx,wy,cam){
-  const mapU=site?.mapU??MAP_TARGET_U,mapV=site?.mapV??MAP_TARGET_V;
+  const driftU=site?.kind==='buoy'&&target?(target.x-target.baseX)/W:0;
+  const mapU=(site?.mapU??MAP_TARGET_U)+driftU,mapV=site?.mapV??MAP_TARGET_V;
   const u=mapU+(wx-target.x)/W;
   const v=mapV*(1-clamp(alt(wy)/MAXALT,0,1));
   return {x:cam.left+u*cam.drawW,y:cam.top+v*cam.drawH};
@@ -317,6 +325,20 @@ function drawAerialMap(amount=1){
 
 function drawTarget(){
   const tp=mapProject(target.x,GROUND-22),w=target.w*tp.scale,y=tp.y,s=tp.scale;
+  if(site.kind==='buoy'){
+    ctx.save();ctx.globalAlpha=.42;ctx.strokeStyle='#c9f4f4';ctx.lineWidth=2*s;
+    for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(tp.x,y+5*s,w*(.42+i*.16),(.10+i*.035)*w,0,0,Math.PI*2);ctx.stroke()}
+    ctx.restore();
+    const bw=Math.max(12,w*.10),bh=bw*1.35;
+    ctx.save();ctx.shadowColor='rgba(44,91,108,.28)';ctx.shadowBlur=5*s;ctx.shadowOffsetY=3*s;
+    rr(tp.x-bw/2,y-bh*.82,bw,bh*.82,bw*.28);ctx.fillStyle='#fff3d9';ctx.fill();ctx.strokeStyle='#7a5946';ctx.lineWidth=1.5*s;ctx.stroke();ctx.shadowColor='transparent';
+    ctx.save();ctx.beginPath();rr(tp.x-bw/2,y-bh*.82,bw,bh*.82,bw*.28);ctx.clip();ctx.fillStyle='#f26e63';ctx.fillRect(tp.x-bw/2,y-bh*.82,bw,bh*.34);ctx.fillStyle='#f26e63';ctx.fillRect(tp.x-bw/2,y-bh*.25,bw,bh*.20);ctx.restore();
+    ell(tp.x,y-bh*.82,bw*.5,bw*.18,'#fff0cb','#7a5946');ctx.restore();
+  }else if(site.kind==='roof'){
+    const rw=w*1.15,rh=rw*.28;
+    ctx.save();ctx.beginPath();ctx.moveTo(tp.x-rw*.56,y-2*s);ctx.lineTo(tp.x,y-rh);ctx.lineTo(tp.x+rw*.56,y-2*s);ctx.lineTo(tp.x,y+rh*.60);ctx.closePath();ctx.fillStyle='#c9cbd0';ctx.fill();ctx.strokeStyle='#68594f';ctx.lineWidth=2*s;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(tp.x-rw*.30,y-2*s);ctx.lineTo(tp.x,y-rh*.56);ctx.lineTo(tp.x+rw*.30,y-2*s);ctx.lineTo(tp.x,y+rh*.29);ctx.closePath();ctx.fillStyle='#fff0c9';ctx.fill();ctx.strokeStyle='#f27d75';ctx.lineWidth=2*s;ctx.stroke();ctx.restore();
+  }
   ctx.save();ctx.globalAlpha=.9;ctx.strokeStyle='#fff3dc';ctx.lineWidth=5*s;ctx.beginPath();ctx.ellipse(tp.x,y+3,Math.max(w*.72,50),18*s,0,0,Math.PI*2);ctx.stroke();ctx.restore();
   ctx.save();ctx.globalAlpha=.22;ell(tp.x,y+8,w*.72,12*s,'#426a48');ctx.restore();
   ell(tp.x,y,w*.58,13*s,'#fff1c7','#6d5745');
@@ -341,7 +363,7 @@ function drawTarget(){
     const touchSteer=input.down?clamp((input.x-input.startX)/68,-1,1):steer;
     const drift=(wind.current??wind.v)*1.55*easeOut(P.chute)*weather.wind*site.wind*gear.wind*P.ch.wind,aim=touchSteer*820*gear.control*P.ch.steer+drift;
     const px=clamp(P.x+aim*flight+(P.vx-aim)*(1-Math.exp(-1.35*flight))/1.35,16,W-16);
-    const miss=Math.abs(px-target.x),color=miss<target.w*.14?'#54bd78':miss<target.w*.5?'#f0b44b':'#ed6b70';
+    const expectedTarget=targetFutureX(flight),miss=Math.abs(px-expectedTarget),color=miss<target.w*.14?'#54bd78':miss<target.w*.5?'#f0b44b':'#ed6b70';
     const pp=mapProject(px,GROUND-22);
     ctx.save();ctx.setLineDash([4,6]);ctx.lineWidth=2;ctx.strokeStyle=color;ctx.globalAlpha=.82;
     ctx.beginPath();ctx.moveTo(W/2,H*.42+18);ctx.quadraticCurveTo((W/2+pp.x)/2,H*.68,pp.x,pp.y-5);ctx.stroke();
@@ -406,7 +428,8 @@ function drawHUD(){
 function drawButton(){
   if(P.state==='plane'){
     txt('표적이 곰 아래로 올 때 톡!',W/2,H*.76,16,'#e76f8b');
-    txt(site.kind==='pasture'?'목장 표적은 더 작아요 · 중앙을 노려요':'비행기 위치가 착지 위치의 시작점이에요',W/2,H*.80,11,'#684f42');
+    const siteHint=site.kind==='pasture'?'넓은 목장 표적 · 울타리 안을 노려요':site.kind==='buoy'?'움직이는 부표 · 물결을 보고 맞춰요':'좁은 옥상 표적 · 바람을 조심해요';
+    txt(siteHint,W/2,H*.80,11,'#684f42');
     return;
   }
   if(P.state==='fall'){
@@ -427,7 +450,7 @@ function drawButton(){
     const drift=(wind.current??wind.v)*1.55*easeOut(P.chute)*weather.wind*site.wind*gear.wind*P.ch.wind;
     const aim=touchSteer*820*gear.control*P.ch.steer+drift;
     const predictedX=clamp(P.x+aim*flight+(P.vx-aim)*(1-Math.exp(-1.35*flight))/1.35,16,W-16);
-    const dx=predictedX-target.x;
+    const dx=predictedX-targetFutureX(flight);
     let hint;
     if(ok)hint=P.flareGood?'브레이크 성공! 표적 중심을 맞춰요':'착지 직전 아래로 당겨 속도를 줄여요';
     else if(Math.abs(dx)<target.w*.14)hint='예상 착지선이 표적 중심에 가까워요!';
@@ -453,10 +476,11 @@ function drawCard(){
   for(let i=0;i<3;i++){
     ctx.save();ctx.translate(W/2+(i-1)*36,y+116);drawStar(0,0,14,0);if(i>=r.rating){ctx.globalAlpha=.25;ctx.fillStyle='#79685c';ctx.beginPath();ctx.arc(0,0,14,0,Math.PI*2);ctx.fill()}ctx.restore();
   }
-  const extras=(r.starPts||0)+(r.windPts||0)+(r.softPts||0);
-  const reward=r.multiplier>1?'과감한 전개 ×1.5!':`추가 보너스 +${extras}점`;
-  txt(`착지 정확도 ${r.acc}점  ·  ${reward}`,W/2,y+142,11,'#9b7041','center',false);
-  rr(W/2-82,y+155,164,30,15);ctx.fillStyle='#f27d75';ctx.fill();txt(G.jump%3===2?`${SITES[G.stage%SITES.length].name} 도전  ›`:'한 번 더 도전!  ›',W/2,y+170,12,'#fff','center',false);
+  const routeStars=G.routeStars.reduce((sum,v)=>sum+v,0),routeEnd=G.jump%SITES.length===SITES.length-1;
+  const routeLine=routeEnd?`코스 ${G.routePoints}점  ·  별 ${routeStars}/9`:`이번 ${r.pts}점  ·  코스 별 ${routeStars}/9`;
+  txt(routeLine,W/2,y+142,11,'#9b7041','center',false);
+  const cta=routeEnd?'다음 코스 시작  ›':`${SITES[(G.jump+1)%SITES.length].name} 이동  ›`;
+  rr(W/2-82,y+155,164,30,15);ctx.fillStyle='#f27d75';ctx.fill();txt(cta,W/2,y+170,12,'#fff','center',false);
   ctx.restore();
 }
 function drawTitle(){
@@ -467,7 +491,7 @@ function drawTitle(){
   drawPlane(W*.73,H*.34,1,.48);drawFreefallBear(W*.31,H*.48,-.08,.40);
   rr(W*.10,H*.065,W*.80,H*.19,28);ctx.fillStyle='rgba(255,250,238,.95)';ctx.fill();ctx.strokeStyle='rgba(132,93,63,.30)';ctx.lineWidth=2;ctx.stroke();
   txt('둥실둥실',W/2,H*.12,23,'#bf7149','center',false);txt('낙하대',W/2,H*.195,34,'#74482f','center',false);
-  txt('세 번의 선택으로 표적 한가운데!',W/2,H*.64,15,'#624b3e');
+  txt('세 곳의 표적에 차례로 착지!',W/2,H*.64,15,'#624b3e');
   rr(W*.18,H*.725,W*.64,60,25);ctx.fillStyle='#f27d75';ctx.fill();ctx.strokeStyle='#a75049';ctx.lineWidth=2;ctx.stroke();
   txt('탭해서 출발!',W/2,H*.725+30,20,'#fff','center',false);
   rr(W*.15,H*.825,W*.70,45,20);ctx.fillStyle='rgba(255,250,238,.88)';ctx.fill();
