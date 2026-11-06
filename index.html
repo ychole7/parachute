@@ -281,7 +281,7 @@ function islandCamera(){
   const baseScale=Math.max(W/iw,H/ih),drawW=iw*baseScale,drawH=ih*baseScale;
   const left=(W-drawW)/2,top=(H-drawH)/2;
   const progress=P?1-clamp(alt(P.y)/MAXALT,0,1):0;
-  const zoom=1+.92*easeOut(progress),anchorY=playerScreenY();
+  const zoom=1+2.35*Math.pow(progress,2.5),anchorY=playerScreenY();
   return {iw,ih,baseScale,drawW,drawH,left,top,zoom,anchorY};
 }
 function mapImagePoint(wx,wy,cam){
@@ -291,7 +291,10 @@ function mapImagePoint(wx,wy,cam){
 }
 function mapProject(wx,wy){
   const cam=islandCamera(),p=mapImagePoint(wx,wy,cam),player=mapImagePoint(P.x,P.y,cam);
-  return {x:W/2+(p.x-player.x)*cam.zoom,y:cam.anchorY+(p.y-player.y)*cam.zoom,scale:cam.zoom,depth:clamp((GROUND-wy)/(GROUND-START_Y),0,1)};
+  const depth=clamp((GROUND-wy)/(GROUND-START_Y),0,1);
+  // 지면 표적은 곰의 중심이 아니라 발밑으로 다가오도록 낮은 시점 오프셋을 더한다.
+  const groundPerspective=48*Math.pow(cam.zoom>1?(cam.zoom-1)/2.35:0,1.25)*Math.pow(depth,.65);
+  return {x:W/2+(p.x-player.x)*cam.zoom,y:cam.anchorY+(p.y-player.y)*cam.zoom+groundPerspective,scale:cam.zoom,depth};
 }
 function drawAerialMap(amount=1){
   const cam=islandCamera(),player=mapImagePoint(P.x,P.y,cam);
