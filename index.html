@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v37-jump-aim">
+<meta name="game-build" content="v39-landing-perspective">
 <title>둥실둥실 낙하대 · 표적 착지</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -36,7 +36,8 @@ const PARACHUTES=[
   {name:'주황 아이보리 캐노피',desc:'기본 캐노피',control:1,wind:1,fall:1,flare:1,open:1,wing:1,panels:6}
 ];
 const SITES=[
-  {name:'섬의 꽃밭',icon:'✿',kind:'meadow',x:.52,wind:1,focus:'꽃밭 한가운데에 사뿐히'}
+  {name:'섬의 초원',icon:'✿',kind:'meadow',x:.52,mapU:.52,mapV:.68,targetW:76,wind:1,focus:'표적 한가운데에 착지'},
+  {name:'꼬마 목장',icon:'🐄',kind:'pasture',x:.52,mapU:.16,mapV:.75,targetW:66,wind:.92,focus:'울타리 안 표적에 착지'}
 ];
 const WEATHERS=[
   {name:'맑음',icon:'☀',wind:0.9,fall:1,dive:0.96,flare:1,open:0.96,gust:0.72,kind:'clear'},
@@ -73,14 +74,14 @@ for(let i=0;i<8;i++)clouds.push({x:Math.random()*400,y:Math.random()*800,s:rnd(.
 
 function newJump(){
   const s=G.stage,ch=CHARS[0];
-  gear=PARACHUTES[0];weather=WEATHERS[Math.floor(Math.random()*WEATHERS.length)];site=SITES[0];
+  gear=PARACHUTES[0];weather=WEATHERS[Math.floor(Math.random()*WEATHERS.length)];site=SITES[(G.stage-1)%SITES.length];
   const dir=Math.random()<.5?1:-1;
   plane={x:dir>0?W*.12:W*.88,y:PLANE_Y,vx:dir*(150+s*12)};
   const baseWind=(Math.random()<.5?-1:1)*Math.min(32+s*17,115)*rnd(.75,1.15)*site.wind;
   const gusts=[{alt:520,dir:Math.random()<.5?-1:1,power:48*weather.gust,width:105,charge:0,mastered:false},{alt:270,dir:Math.random()<.5?-1:1,power:62*weather.gust,width:82,charge:0,mastered:false}];
   wind={v:baseWind,current:baseWind,phase:rnd(0,Math.PI*2),active:null,gusts};
-  const tw=76;
-  target={x:W*.52,w:tw,vx:0};
+  const tw=site.targetW||76;
+  target={x:W*(site.x??.52),w:tw,vx:0};
   P={x:plane.x,y:START_Y,vx:0,vy:0,ch,state:'plane',chute:0,openAlt:null,stars:0,rot:0,bank:0,spin:0,flare:0,flareGood:false,flareAt:null,gustPts:0,landT:0,result:null};
   stars=[];for(let i=0;i<10+s*2;i++)stars.push({x:rnd(30,W-30),y:rnd(600,GROUND-500),got:false});
   clouds=[];for(let i=0;i<16;i++)clouds.push({x:Math.random()*W,y:rnd(260,GROUND-600),s:rnd(.6,1.4)});
@@ -100,7 +101,7 @@ function land(){
   const d=Math.abs(P.x-target.x);
   const soft=s&&P.flareGood&&P.vy<120;
   let acc=0,label;
-  if(!s)label='꽈당!';
+  if(!s)label=site.kind==='pasture'?'건초더미에 퐁당!':'아이고, 꽈당!';
   else if(d<target.w*.075){acc=100;label='퍼펙트!'}
   else if(d<target.w*.28){acc=60;label='좋아요!'}
   else if(d<target.w*.5){acc=30;label='아슬아슬!'}
@@ -115,7 +116,7 @@ function land(){
   const rating=!s?0:(acc===100&&soft?3:acc===100?2:acc>0?1:0);
   P.result={safe:s,soft,rating,softPts:soft&&acc>0?20:0,acc,bold:Math.min(bold,100),starPts,windPts,pts,label,missCM,bestCM,newBest,multiplier,onMat:s&&acc>0};
   P.state='landed';P.vx=0;P.vy=0;P.landT=0;G.total+=pts;
-  if(!s){sfx(160,.35,'sawtooth',.12,-100);buzz(120);burst(P.x,P.y+18,'#a0794f',14)}
+  if(!s){sfx(160,.35,'sawtooth',.12,-100);buzz(120);burst(P.x,P.y+18,site.kind==='pasture'?'#e6c56e':'#a0794f',14);if(site.kind==='pasture')pop('음메~!',W/2,H*.42-52,'#806743',22)}
   else if(acc===100){[660,880,1100].forEach((f,i)=>setTimeout(()=>sfx(f,.18,'triangle',.14),i*90));burst(P.x,P.y,'#ffd84d',soft?30:20);buzz(soft?55:40);if(soft)pop('사뿐! +20',W/2,H*.42-52,'#ff8fab',22)}
   else{sfx(soft?780:660,.15,'triangle',.12);burst(P.x,P.y+10,soft?'#ffe9a8':'#ffffff',soft?20:10);if(soft&&acc>0)pop('사뿐! +20',W/2,H*.42-52,'#ff8fab',22)}
 }
@@ -285,16 +286,23 @@ function islandCamera(){
   return {iw,ih,baseScale,drawW,drawH,left,top,zoom,anchorY};
 }
 function mapImagePoint(wx,wy,cam){
-  const u=MAP_TARGET_U+(wx-target.x)/W;
-  const v=MAP_TARGET_V*(1-clamp(alt(wy)/MAXALT,0,1));
+  const mapU=site?.mapU??MAP_TARGET_U,mapV=site?.mapV??MAP_TARGET_V;
+  const u=mapU+(wx-target.x)/W;
+  const v=mapV*(1-clamp(alt(wy)/MAXALT,0,1));
   return {x:cam.left+u*cam.drawW,y:cam.top+v*cam.drawH};
 }
 function mapProject(wx,wy){
   const cam=islandCamera(),p=mapImagePoint(wx,wy,cam),player=mapImagePoint(P.x,P.y,cam);
   const depth=clamp((GROUND-wy)/(GROUND-START_Y),0,1);
-  // 지면 표적은 곰의 중심이 아니라 발밑으로 다가오도록 낮은 시점 오프셋을 더한다.
-  const groundPerspective=48*Math.pow(cam.zoom>1?(cam.zoom-1)/2.35:0,1.25)*Math.pow(depth,.65);
-  return {x:W/2+(p.x-player.x)*cam.zoom,y:cam.anchorY+(p.y-player.y)*cam.zoom+groundPerspective,scale:cam.zoom,depth};
+  const proximity=1-clamp(alt(P.y)/MAXALT,0,1);
+  // 하강 막바지에는 지면 표적을 화면 아래로 보내 지형이 가까워지는 원근감을 만든다.
+  // 착지 뒤에는 카메라가 표적과 곰의 발을 다시 맞춰 결과가 한눈에 읽히게 한다.
+  const landingSettle=P.state==='landed'?1-easeOut(clamp(P.landT/.42,0,1)):1;
+  const nearCue=Math.pow(proximity,1.65)*landingSettle*Math.pow(depth,.72);
+  const baseGroundOffset=Math.min(48,H*.06);
+  const groundPerspective=baseGroundOffset+H*.29*nearCue;
+  const perspectiveScale=cam.zoom*(1+.12*nearCue);
+  return {x:W/2+(p.x-player.x)*perspectiveScale,y:cam.anchorY+(p.y-player.y)*perspectiveScale+groundPerspective,scale:perspectiveScale,depth};
 }
 function drawAerialMap(amount=1){
   const cam=islandCamera(),player=mapImagePoint(P.x,P.y,cam);
@@ -314,6 +322,8 @@ function drawTarget(){
   ell(tp.x,y,w*.58,13*s,'#fff1c7','#6d5745');
   ell(tp.x,y,w*.38,9*s,'#ff8fab','#6d5745');
   ell(tp.x,y,w*.15,4.5*s,'#ff5c8a');
+  const siteLabelSize=clamp(11*s,11,17);
+  txt(`${site.icon} ${site.name}`,tp.x,y-27*s,siteLabelSize,'#70442e','center',false);
   if(P&&P.state==='plane'){
     const drop=mapProject(P.x,GROUND-22),playerY=playerScreenY();
     ctx.save();ctx.strokeStyle='rgba(255,255,255,.92)';ctx.lineWidth=2;ctx.setLineDash([7,7]);
@@ -396,7 +406,7 @@ function drawHUD(){
 function drawButton(){
   if(P.state==='plane'){
     txt('표적이 곰 아래로 올 때 톡!',W/2,H*.76,16,'#e76f8b');
-    txt('비행기 위치가 착지 위치의 시작점이에요',W/2,H*.80,11,'#684f42');
+    txt(site.kind==='pasture'?'목장 표적은 더 작아요 · 중앙을 노려요':'비행기 위치가 착지 위치의 시작점이에요',W/2,H*.80,11,'#684f42');
     return;
   }
   if(P.state==='fall'){
@@ -434,8 +444,9 @@ function drawCard(){
   ctx.save();ctx.globalAlpha=a;
   rr(x,y,cw,chh,26);ctx.fillStyle='rgba(255,250,239,.98)';ctx.shadowColor='rgba(90,65,52,.18)';ctx.shadowBlur=18;ctx.fill();ctx.shadowBlur=0;ctx.strokeStyle='rgba(124,91,67,.25)';ctx.lineWidth=1.5;ctx.stroke();
   const good=r.safe&&r.acc>0;
-  const headline=!r.safe?'낙하산 착지가 필요해요':r.newBest?'최고 기록 갱신!':r.acc===100?'정중앙 착지!':r.acc>0?'표적 안착!':'표적을 벗어났어요';
-  txt(headline,W/2,y+27,21,!r.safe?'#d36d68':r.acc===100?'#e76f8b':'#638a70','center',false);
+  const funny=site.kind==='pasture'&&(r.label.includes('음메')||r.label.includes('울타리')||r.label.includes('건초'));
+  const headline=(!r.safe||funny)?r.label:r.newBest?'최고 기록 갱신!':r.acc===100?'정중앙 착지!':r.acc>0?'표적 안착!':'표적을 벗어났어요';
+  txt(headline,W/2,y+27,21,!r.safe?'#d36d68':funny?'#b47b37':r.acc===100?'#e76f8b':'#638a70','center',false);
   txt(`중심에서 ${r.missCM}cm`,W/2,y+53,18,'#806b5c','center',false);
   if(r.bestCM!==null)txt(`내 최고 기록  ${r.bestCM}cm`,W/2,y+73,11,'#a77a45','center',false);
   txt(r.acc===100?'정확도 최고!':r.acc>0?'조금만 더 중심에 가까이!':'바람과 착지선을 다시 맞춰봐요',W/2,y+91,11,'#806b5c','center',false);
@@ -445,7 +456,7 @@ function drawCard(){
   const extras=(r.starPts||0)+(r.windPts||0)+(r.softPts||0);
   const reward=r.multiplier>1?'과감한 전개 ×1.5!':`추가 보너스 +${extras}점`;
   txt(`착지 정확도 ${r.acc}점  ·  ${reward}`,W/2,y+142,11,'#9b7041','center',false);
-  rr(W/2-82,y+155,164,30,15);ctx.fillStyle='#f27d75';ctx.fill();txt(G.jump%3===2?'다음 표적에 도전  ›':'한 번 더 도전!  ›',W/2,y+170,12,'#fff','center',false);
+  rr(W/2-82,y+155,164,30,15);ctx.fillStyle='#f27d75';ctx.fill();txt(G.jump%3===2?`${SITES[G.stage%SITES.length].name} 도전  ›`:'한 번 더 도전!  ›',W/2,y+170,12,'#fff','center',false);
   ctx.restore();
 }
 function drawTitle(){
