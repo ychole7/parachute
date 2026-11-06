@@ -353,6 +353,25 @@ function drawHUD(){
     txt(weather?.kind==='wind'?'돌풍':'바람',47,H*.177,12,'#755b49','center',false);
     txt(arrow,93,H*.177,19,'#e68c48','center',false);
   }
+  if(P.state==='fall'||P.state==='chute'){
+    const x=W-20,y0=112,y1=Math.max(250,H*.72),height=y1-y0;
+    const yAt=a=>y1-clamp(a,0,MAXALT)/MAXALT*height;
+    const yBonus=yAt(BONUS_ALT),yDanger=yAt(dangerThreshold());
+    rr(x-7,y0,14,height,7);ctx.fillStyle='rgba(255,255,255,.83)';ctx.fill();
+    ctx.save();ctx.beginPath();rr(x-7,y0,14,height,7);ctx.clip();
+    ctx.fillStyle='rgba(113,190,223,.88)';ctx.fillRect(x-7,y0,14,yBonus-y0);
+    ctx.fillStyle='rgba(255,194,74,.95)';ctx.fillRect(x-7,yBonus,14,yDanger-yBonus);
+    ctx.fillStyle='rgba(237,104,104,.94)';ctx.fillRect(x-7,yDanger,14,y1-yDanger);ctx.restore();
+    ctx.strokeStyle='rgba(93,72,58,.65)';ctx.lineWidth=1.4;
+    for(const yy of[yBonus,yDanger]){ctx.beginPath();ctx.moveTo(x-11,yy);ctx.lineTo(x+11,yy);ctx.stroke()}
+    const current=alt(P.y),markY=yAt(current),valueX=x-112;
+    rr(valueX,markY-13,49,26,13);ctx.fillStyle='rgba(255,250,238,.97)';ctx.fill();ctx.strokeStyle='rgba(124,91,67,.35)';ctx.stroke();
+    txt(`${current}m`,valueX+24.5,markY,11,current<dangerThreshold()?'#cf5555':'#5b5149','center',false);
+    ell(x,markY,7,7,'#fff','#5b5149');
+    txt('×1.5',x-42,(yBonus+yDanger)/2,10,'#795b27','center',false);
+    txt('위험',x-42,(yDanger+y1)/2,10,'#a54343','center',false);
+    txt('고도',x,y0-16,10,'#604735','center',false);
+  }
   if(P.state==='chute'&&alt(P.y)<15){
     pill(W/2-44,H*.23,88,30,'rgba(255,247,225,.94)');txt('▶▶ SLOW',W/2,H*.247,14,'#8b68ca','center',false);
   }
