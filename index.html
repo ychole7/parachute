@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v31-island-background">
+<meta name="game-build" content="v32-hud-clarity">
 <title>둥실둥실 낙하대</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -363,7 +363,7 @@ function drawTarget(){
   ell(tp.x,y,w*.58,13*tp.scale,'#fff1c7','#6d5745');
   ell(tp.x,y,w*.38,9*tp.scale,'#ff8fab','#6d5745');
   ell(tp.x,y,w*.15,4.5*tp.scale,'#ff5c8a');
-  txt(site.kind==='lake'?'부표 착지':site.kind==='roof'?'옥상 착지':'잔디밭 착지',tp.x,y-22*tp.scale,12*tp.scale,'#ff5c8a','center',false);
+  if(site.kind!=='school')txt(site.kind==='lake'?'부표 착지':'옥상 착지',tp.x,y-22*tp.scale,12*tp.scale,'#ff5c8a','center',false);
   if(P&&P.state==='landed'){const q=mapProject(P.x,GROUND-22),p=clamp(P.landT/.55,0,1),col=P.result.acc===100?'#54bd78':P.result.acc>0?'#f0b44b':'#ed6b70';ctx.save();ctx.globalAlpha=(1-p)*.9;ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,12+p*42,6+p*20,0,0,Math.PI*2);ctx.stroke();ctx.restore();ell(q.x,q.y,5,5,col,'#fff')}
   if(P&&P.state==='landed'&&P.landT<.55){const a=P.landT/.55;ctx.save();ctx.globalAlpha=(1-a)*.7;ctx.strokeStyle=P.result.acc>0?'#fff0a8':'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(tp.x,y,18+a*w*.65,7+a*16,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
   if(P&&P.state==='chute'){
@@ -399,7 +399,7 @@ function drawHUD(){
   ctx.save();ctx.translate(W/2,31);rr(-42,-14,84,28,14);ctx.fillStyle='rgba(255,248,231,.96)';ctx.fill();ctx.strokeStyle='rgba(142,99,62,.3)';ctx.lineWidth=1.5;ctx.stroke();
   txt(wind.active?'돌풍!':`바람 ${wv}`,-8,1,14,wind.active?'#e66b35':'#604735','center',false);
   ctx.strokeStyle='#e89035';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(25-d*10,1);ctx.lineTo(25+d*10,1);ctx.lineTo(25+d*4,-5);ctx.moveTo(25+d*10,1);ctx.lineTo(25+d*4,7);ctx.stroke();ctx.restore();
-  if(weather&&gear&&P.state!=='landed'){txt(`${weather.icon} ${weather.name}  ·  ${gear.name}`,W/2,66,11,'#4a3a33','center',false);txt(`목표 · ${site.icon} ${site.name}`,W/2,83,11,'#4a3a33','center',false)}
+  if(weather&&gear&&P.state!=='landed'){box(W*.20,57,W*.60,42);txt(`${weather.icon} ${weather.name} · ${gear.name}`,W/2,70,10.5,'#604735','center',false);txt(`목표 · ${site.icon} ${site.name}`,W/2,86,10.5,'#604735','center',false)}
   // 고도계
   if(P.state==='fall'||P.state==='chute'){
     const x=W-20,y0=90,y1=H-190,yy=a=>y1-a/MAXALT*(y1-y0);
