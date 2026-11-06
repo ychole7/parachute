@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v36-three-decisions">
+<meta name="game-build" content="v37-jump-aim">
 <title>둥실둥실 낙하대 · 표적 착지</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
@@ -314,6 +314,15 @@ function drawTarget(){
   ell(tp.x,y,w*.58,13*s,'#fff1c7','#6d5745');
   ell(tp.x,y,w*.38,9*s,'#ff8fab','#6d5745');
   ell(tp.x,y,w*.15,4.5*s,'#ff5c8a');
+  if(P&&P.state==='plane'){
+    const drop=mapProject(P.x,GROUND-22),playerY=playerScreenY();
+    ctx.save();ctx.strokeStyle='rgba(255,255,255,.92)';ctx.lineWidth=2;ctx.setLineDash([7,7]);
+    ctx.beginPath();ctx.moveTo(W/2,playerY+24);ctx.lineTo(drop.x,drop.y);ctx.stroke();ctx.setLineDash([]);
+    const aligned=Math.abs(P.x-target.x)<target.w*.075;
+    ctx.beginPath();ctx.ellipse(drop.x,drop.y,14*drop.scale,9*drop.scale,0,0,Math.PI*2);ctx.strokeStyle=aligned?'#ff775e':'#fff';ctx.lineWidth=3;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(drop.x-8*drop.scale,drop.y);ctx.lineTo(drop.x+8*drop.scale,drop.y);ctx.moveTo(drop.x,drop.y-8*drop.scale);ctx.lineTo(drop.x,drop.y+8*drop.scale);ctx.stroke();
+    txt(aligned?'표적 정렬!':'점프 예상 지점',drop.x,drop.y+25*drop.scale,11*drop.scale,aligned?'#ff6d75':'#fff','center',false);ctx.restore();
+  }
   if(P&&P.state==='landed'){const q=mapProject(P.x,GROUND-22),p=clamp(P.landT/.55,0,1),col=P.result.acc===100?'#54bd78':P.result.acc>0?'#f0b44b':'#ed6b70';ctx.save();ctx.globalAlpha=(1-p)*.9;ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(q.x,q.y,12+p*42,6+p*20,0,0,Math.PI*2);ctx.stroke();ctx.restore();ell(q.x,q.y,5,5,col,'#fff')}
   if(P&&P.state==='landed'&&P.landT<.55){const a=P.landT/.55;ctx.save();ctx.globalAlpha=(1-a)*.7;ctx.strokeStyle=P.result.acc>0?'#fff0a8':'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(tp.x,y,18+a*w*.65,7+a*16,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
   if(P&&P.state==='chute'){
