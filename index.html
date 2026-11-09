@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v42-steer-and-flare-prototype">
-<title>둥실둥실 낙하대 · 조작 실험</title>
+<meta name="game-build" content="v43-grounded-touchdown">
+<title>둥실둥실 낙하대 · 착지 충격 개선</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
 canvas{display:block;width:100vw;height:100vh;height:100dvh}
@@ -305,8 +305,7 @@ function mapProject(wx,wy){
   const proximity=1-clamp(alt(P.y)/MAXALT,0,1);
   // 하강 막바지에는 지면 표적을 화면 아래로 보내 지형이 가까워지는 원근감을 만든다.
   // 착지 뒤에는 카메라가 표적과 곰의 발을 다시 맞춰 결과가 한눈에 읽히게 한다.
-  const landingSettle=P.state==='landed'?1-easeOut(clamp(P.landT/.42,0,1)):1;
-  const nearCue=Math.pow(proximity,1.65)*landingSettle*Math.pow(depth,.72);
+  const nearCue=Math.pow(proximity,1.65)*Math.pow(depth,.72);
   const baseGroundOffset=Math.min(48,H*.06);
   const groundPerspective=baseGroundOffset+H*.29*nearCue;
   const perspectiveScale=cam.zoom*(1+.12*nearCue);
@@ -360,7 +359,7 @@ function drawTarget(){
   if(P&&P.state==='chute'){
     const flight=Math.max(0,(GROUND-22-P.y)/Math.max(P.vy,55));
     const steer=(input.right?1:0)-(input.left?1:0);
-    const touchSteer=input.down?clamp((input.x-input.startX)/68,-1,1):steer;
+    const touchSteer=input.down?clamp((input.x-input.startX)/44,-1,1):steer;
     const drift=(wind.current??wind.v)*1.55*easeOut(P.chute)*weather.wind*site.wind*gear.wind*P.ch.wind,aim=touchSteer*820*gear.control*P.ch.steer+drift;
     const px=clamp(P.x+aim*flight+(P.vx-aim)*(1-Math.exp(-1.35*flight))/1.35,16,W-16);
     const expectedTarget=targetFutureX(flight),miss=Math.abs(px-expectedTarget),color=miss<target.w*.14?'#54bd78':miss<target.w*.5?'#f0b44b':'#ed6b70';
@@ -512,7 +511,7 @@ function draw(){
   if(G.phase==='title'){drawTitle();return}
   const approach=1-clamp(alt(P.y)/MAXALT,0,1);
   const mapView=P.state==='plane' ? .56 : P.state==='landed' ? 1 : .18+.82*approach;
-  ctx.save();if(P.state==='landed'&&P.landT<.24){const shake=Math.min(8,(P.touchSpeed||0)*.018)*(1-P.landT/.24);ctx.translate(Math.sin(P.landT*62)*shake,Math.cos(P.landT*51)*shake*.55)}
+  ctx.save();if(P.state==='landed'&&P.landT<.32){const shake=clamp(((P.touchSpeed||0)-45)*.065,4,18)*(1-P.landT/.32);ctx.translate(Math.sin(P.landT*68)*shake,Math.cos(P.landT*54)*shake*.62)}
   if(mapView>0)drawAerialMap(mapView);
   if(mapView<1){ctx.save();ctx.globalAlpha=1-mapView;for(const c of clouds){const sy=c.y-camY;if(sy>-60&&sy<H+60)drawCloud(c.x,sy,c.s)}ctx.restore()}
   const cx=W/2,cy=playerScreenY(),rot=P.rot+P.spin*Math.sin(t*25)*.6;
@@ -537,7 +536,8 @@ function draw(){
         if(settle>0){ctx.save();ctx.globalAlpha=settle*.42;ell(cx,touch.y+4,18+(1-settle)*24,5+impact*3,null,'#fff');ctx.restore()}
         const hop=r.safe&&r.acc>0?Math.sin(Math.min(1,P.landT/.52)*Math.PI)*10:0;
         const tumble=r.safe?0:Math.sin(Math.min(1,P.landT/.28)*Math.PI)*.16;
-        drawParachuteRig(cx,touch.y-rigH*.237-hop,tumble,.84);
+        const squash=(1-easeOut(clamp(P.landT/.14,0,1)))*impact,rigY=touch.y-rigH*.237-hop;
+        ctx.save();ctx.translate(cx,rigY+rigH*.48);ctx.scale(1+squash*.12,1-squash*.16);drawParachuteRig(0,-rigH*.48,tumble,.84);ctx.restore();
       }else if(r.safe){drawChute(cx,cy,P.chute,P.ch,0,1.35);drawFreefallBear(cx,cy,0,.40)}
       else{drawFreefallBear(cx,cy+8,Math.sin(Math.min(1,P.landT/.28)*Math.PI)*.16,.40);for(let i=0;i<3;i++){const a=t*4+i*2.1;drawStar(cx+Math.cos(a)*20,cy-14+Math.sin(a)*5,5,a)}}
     }else if(P.state==='chute'&&drawParachuteRig(cx,cy,rot+P.bank*.18)){
@@ -565,7 +565,7 @@ addEventListener('keydown',e=>{audioInit();if(e.key==='ArrowLeft')input.left=tru
 addEventListener('keyup',e=>{if(e.key==='ArrowLeft')input.left=false;if(e.key==='ArrowRight')input.right=false});
 
 let last=performance.now();
-function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;const finalSlow=P&&P.state==='chute'&&alt(P.y)<15;update(dt*(finalSlow ? .25 : 1));draw();requestAnimationFrame(loop)}
+function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;update(dt);draw();requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 </script>
 </body>
