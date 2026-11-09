@@ -407,7 +407,7 @@ function drawHUD(){
     ctx.fillStyle='rgba(255,194,74,.95)';ctx.fillRect(x-7,yBonus,14,yDanger-yBonus);
     ctx.fillStyle='rgba(237,104,104,.94)';ctx.fillRect(x-7,yDanger,14,y1-yDanger);ctx.restore();
     const yFlareTop=yAt(90),yFlareBottom=yAt(12);
-    ctx.save();ctx.globalAlpha=P.state==='chute'&&currentAlt<=90&&currentAlt>12 ? .95 : .58;
+    const flareAltitude=alt(P.y);ctx.save();ctx.globalAlpha=P.state==='chute'&&flareAltitude<=90&&flareAltitude>12 ? .95 : .58;
     rr(x-8,yFlareTop,16,Math.max(5,yFlareBottom-yFlareTop),8);ctx.fillStyle='#e66d91';ctx.fill();ctx.restore();
     ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=1.5;
     for(const yy of[yFlareTop,yFlareBottom]){ctx.beginPath();ctx.moveTo(x-12,yy);ctx.lineTo(x+12,yy);ctx.stroke()}
