@@ -27,7 +27,7 @@ function resize(){
 addEventListener('resize',resize);resize();
 
 const WORLD=4200,GROUND=WORLD-90,MAXALT=1200,PLANE_Y=170,START_Y=PLANE_Y-16,BONUS_ALT=350;
-const DEPTH_TO_X=.62,DEPTH_LIMIT=260;
+const DEPTH_TO_X=.62,DEPTH_LIMIT=1600;
 const OL='#4a3a33';
 const rnd=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),easeOut=p=>1-(1-p)*(1-p);
 const CHARS=[
@@ -175,9 +175,11 @@ function update(dt){
       P.bank+=(steer*P.ch.steer-P.bank)*Math.min(1,dt*(steer===0?4.2:9.0)*gear.control);
       P.vx+=(P.bank*1180*gear.control+wind.current*1.55*e*weather.wind*site.wind*gear.wind*P.ch.wind-P.vx*1.05)*dt;P.vx=clamp(P.vx,-390,390);
     }
-    const depthAccel=P.state==='chute'?420:240,depthDrag=P.state==='chute'?2.4:1.8;
-    P.vz=clamp(P.vz+(depthSteer*depthAccel-P.vz*depthDrag)*dt,-170,170);
-    P.depth=clamp(P.depth+P.vz*dt,-DEPTH_LIMIT,DEPTH_LIMIT);
+    const depthAccel=P.state==='chute'?820:420,depthDrag=P.state==='chute'?1.9:1.5,depthMax=P.state==='chute'?420:260;
+    P.vz=clamp(P.vz+(depthSteer*depthAccel-P.vz*depthDrag)*dt,-depthMax,depthMax);
+    const nextDepth=P.depth+P.vz*dt;
+    P.depth=clamp(nextDepth,-DEPTH_LIMIT,DEPTH_LIMIT);
+    if(P.depth!==nextDepth)P.vz=0;
     P.spin*=Math.pow(.05,dt);
     P.rot+=((P.state==='fall'?steer*.35:P.bank*.3+P.vx/650)-P.rot)*Math.min(1,5*dt);
     P.x+=P.vx*dt;P.y+=P.vy*dt;
