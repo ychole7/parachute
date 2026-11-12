@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v47-stage-progression">
-<title>둥실둥실 낙하대 · 스테이지 착지 도전</title>
+<meta name="game-build" content="v48-stage-flight-rhythm">
+<title>둥실둥실 낙하대 · 스테이지별 비행 리듬</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
 canvas{display:block;width:100vw;height:100vh;height:100dvh}
@@ -36,12 +36,12 @@ const PARACHUTES=[
   {name:'주황 아이보리 캐노피',desc:'기본 캐노피',control:1,wind:1,fall:1,flare:1,open:1,wing:1,panels:6}
 ];
 const STAGE_PLAN=[
-  {name:'목장 운동장',icon:'🐄',kind:'pasture',x:.52,mapU:.16,mapV:.75,targetW:96,wind:.50,focus:'넓은 목장 표적 · 조종과 착지 익히기'},
-  {name:'목장 바깥 공터',icon:'🌼',kind:'pasture',x:.38,mapU:.16,mapV:.75,targetW:96,wind:.62,focus:'옆 공터 표적 · 방향을 조절해요'},
-  {name:'강변 둔치',icon:'🌿',kind:'ground',x:.52,mapU:.12,mapV:.57,targetW:88,wind:.95,focus:'강변 표적 · 옆바람을 읽어요'},
-  {name:'옥상 공터',icon:'🏠',kind:'roof',x:.52,mapU:.75,mapV:.54,targetW:80,wind:.95,focus:'넓은 옥상 공터 · 지면을 보고 착지해요'},
-  {name:'옥상 한쪽 공터',icon:'🏠',kind:'roof',x:.67,mapU:.75,mapV:.54,targetW:68,wind:1.08,focus:'한쪽 공터 표적 · 조종 범위를 조절해요'},
-  {name:'돌풍 부는 옥상',icon:'🏠',kind:'roof',x:.37,mapU:.75,mapV:.54,targetW:60,wind:1.20,gusts:true,weather:'wind',focus:'돌풍 부는 옥상 · 바람과 착지 타이밍을 맞춰요'}
+  {name:'목장 운동장',icon:'🐄',kind:'pasture',x:.52,mapU:.16,mapV:.75,targetW:96,wind:.50,dropAlt:1200,flareMin:24,flareMax:68,focus:'넓은 목장 표적 · 조종과 착지 익히기'},
+  {name:'목장 바깥 공터',icon:'🌼',kind:'pasture',x:.38,mapU:.16,mapV:.75,targetW:96,wind:.62,dropAlt:1000,flareMin:24,flareMax:68,focus:'옆 공터 표적 · 방향을 조절해요'},
+  {name:'강변 둔치',icon:'🌿',kind:'ground',x:.52,mapU:.12,mapV:.57,targetW:88,wind:.95,dropAlt:900,flareMin:26,flareMax:66,focus:'강변 표적 · 옆바람을 읽어요'},
+  {name:'옥상 공터',icon:'🏠',kind:'roof',x:.52,mapU:.75,mapV:.54,targetW:80,wind:.95,dropAlt:1100,flareMin:28,flareMax:64,focus:'넓은 옥상 공터 · 지면을 보고 착지해요'},
+  {name:'옥상 한쪽 공터',icon:'🏠',kind:'roof',x:.67,mapU:.75,mapV:.54,targetW:68,wind:1.08,dropAlt:850,flareMin:30,flareMax:62,focus:'한쪽 공터 표적 · 조종 범위를 조절해요'},
+  {name:'돌풍 부는 옥상',icon:'🏠',kind:'roof',x:.37,mapU:.75,mapV:.54,targetW:60,wind:1.20,dropAlt:1200,flareMin:34,flareMax:60,gusts:true,weather:'wind',focus:'돌풍 부는 옥상 · 바람과 착지 타이밍을 맞춰요'}
 ];
 function getStageSite(stage){return {...STAGE_PLAN[clamp(stage-1,0,STAGE_PLAN.length-1)]}}
 const WEATHERS=[
@@ -87,8 +87,9 @@ function newJump(){
   wind={v:baseWind,current:baseWind,phase:rnd(0,Math.PI*2),active:null,gusts};
   const tw=site.targetW||76;
   const targetX=W*(site.x??.52);target={x:targetX,baseX:targetX,w:tw,vx:0,phase:rnd(0,Math.PI*2),moveAmp:site.moveAmp?W*site.moveAmp:0,moveRate:site.moveRate||0};
-  P={x:plane.x,y:START_Y,vx:0,vy:0,ch,state:'plane',chute:0,openAlt:null,stars:0,rot:0,bank:0,spin:0,flare:0,flareGood:false,flareAt:null,flareCallout:false,flareUsed:false,flareHold:0,gustPts:0,landT:0,result:null};
-  stars=[];const routePhase=rnd(0,Math.PI*2),routeStart=plane.x,routeEnd=target.x;for(let i=0;i<6;i++){const u=i/5,y=650+u*(GROUND-520-650),sway=Math.sin(u*Math.PI*2+routePhase)*W*.16,x=clamp(routeStart+(routeEnd-routeStart)*u+sway,30,W-30);stars.push({x,y,got:false})}
+  const startY=GROUND-22-(site.dropAlt/MAXALT)*(GROUND-22-START_Y);
+  P={x:plane.x,y:startY,startY,vx:0,vy:0,ch,state:'plane',chute:0,openAlt:null,stars:0,rot:0,bank:0,spin:0,flare:0,flareGood:false,flareAt:null,flareCallout:false,flareUsed:false,flareHold:0,gustPts:0,landT:0,result:null};
+  stars=[];const routePhase=rnd(0,Math.PI*2),routeStart=plane.x,routeEnd=target.x,starStart=P.y+100,starEnd=GROUND-520;for(let i=0;i<6;i++){const u=i/5,y=starStart+u*(starEnd-starStart),sway=Math.sin(u*Math.PI*2+routePhase)*W*.16,x=clamp(routeStart+(routeEnd-routeStart)*u+sway,30,W-30);stars.push({x,y,got:false})}
   clouds=[];for(let i=0;i<16;i++)clouds.push({x:Math.random()*W,y:rnd(260,GROUND-600),s:rnd(.6,1.4)});
   camY=0;G.phase='play';
 }
@@ -144,7 +145,7 @@ function update(dt){
   plane.x+=plane.vx*dt;
   if(P.state==='plane'){
     if(plane.vx>0&&plane.x>W+90)plane.x=-90;if(plane.vx<0&&plane.x<-90)plane.x=W+90;
-    P.x=plane.x;P.y=START_Y;
+    P.x=plane.x;P.y=P.startY;
   }
 
   if(P.state==='fall'||P.state==='chute'){
@@ -455,11 +456,11 @@ function drawButton(){
     else hint='표적을 향해 좌우로 조종해요';
     const baseY=H*.88;rr(W*.28,baseY-19,W*.44,38,19);ctx.fillStyle='rgba(255,250,238,.94)';ctx.fill();ctx.strokeStyle='rgba(124,91,67,.28)';ctx.lineWidth=1.2;ctx.stroke();txt(hint,W*.50,baseY,12.5,flareWindow?'#d94f79':'#684f42','center',false);
     if(flareWindow){
-      const bx=W*.84,by=H*.75,r=Math.min(43,W*.115),sweet=a<=68&&a>=24,pulse=1+Math.sin(t*7)*.045;
+      const bx=W*.84,by=H*.75,r=Math.min(43,W*.115),sweet=a<=site.flareMax&&a>=site.flareMin,pulse=1+Math.sin(t*7)*.045;
       ctx.save();ctx.translate(bx,by);ctx.scale(pulse,pulse);ell(0,3,r+5,r+5,'rgba(255,255,255,.55)');ell(0,0,r,r,sweet?'#71c979':'#f2b94f',sweet?'#328346':'#986623');
       ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r-5,-Math.PI/2,-Math.PI/2+Math.PI*2*clamp((90-a)/78,0,1));ctx.stroke();
       txt(P.flareUsed?'완료':'착지',0,-6,15,'#fff','center',true);txt(P.flareUsed?'':'TAP!',0,15,13,'#fff5c0','center',true);ctx.restore();
-      txt(sweet?'지금!':a>68?'조금 더 기다려요':'늦기 전에 눌러요',bx,by+r+15,10,sweet?'#328346':'#684f42','center',false);
+      txt(sweet?'지금!':a>site.flareMax?'조금 더 기다려요':'늦기 전에 눌러요',bx,by+r+15,10,sweet?'#328346':'#684f42','center',false);
     }
   }
 }
@@ -488,7 +489,7 @@ function drawTitle(){
   drawPlane(W*.73,H*.34,1,.48);drawFreefallBear(W*.31,H*.48,-.08,.40);
   rr(W*.10,H*.065,W*.80,H*.19,28);ctx.fillStyle='rgba(255,250,238,.95)';ctx.fill();ctx.strokeStyle='rgba(132,93,63,.30)';ctx.lineWidth=2;ctx.stroke();
   txt('둥실둥실',W/2,H*.12,23,'#bf7149','center',false);txt('낙하대',W/2,H*.195,34,'#74482f','center',false);
-  txt('스테이지마다 새로운 곳에 착지!',W/2,H*.64,15,'#624b3e');
+  txt('장소와 높이가 달라지는 착지 도전!',W/2,H*.64,15,'#624b3e');
   rr(W*.18,H*.725,W*.64,60,25);ctx.fillStyle='#f27d75';ctx.fill();ctx.strokeStyle='#a75049';ctx.lineWidth=2;ctx.stroke();
   txt('탭해서 출발!',W/2,H*.725+30,20,'#fff','center',false);
   rr(W*.15,H*.825,W*.70,45,20);ctx.fillStyle='rgba(255,250,238,.88)';ctx.fill();
@@ -556,7 +557,7 @@ function action(x,y){
   if(G.phase==='title'){G.stage=1;G.total=0;newJump();return true}
   if(P.state==='plane'){jump();return true}
   if(P.state==='fall'&&(x==null||Math.hypot(x-W/2,y-H*.83)<Math.min(76,W*.2))){openChute();return true}
-  if(P.state==='chute'){const a=alt(P.y),bx=W*.84,by=H*.75,r=Math.min(52,W*.13);if(a<=90&&a>12&&Math.hypot(x-bx,y-by)<r){if(!P.flareUsed){P.flareUsed=true;P.flareAt=a;P.flareGood=a<=68&&a>=24;P.flare=1;P.flareHold=.52;P.flareCallout=true;if(P.flareGood){pop('타이밍 성공!',W/2,H*.42-52,'#ff5c8a',21);sfx(760,.14,'triangle',.12,220);buzz(18)}else{pop(a>68?'조금 빨라요!':'조금 늦었어요!',W/2,H*.42-52,'#f0a13d',19);sfx(430,.12,'triangle',.1,-80)}}return true}}
+  if(P.state==='chute'){const a=alt(P.y),bx=W*.84,by=H*.75,r=Math.min(52,W*.13);if(a<=90&&a>12&&Math.hypot(x-bx,y-by)<r){if(!P.flareUsed){P.flareUsed=true;P.flareAt=a;P.flareGood=a<=site.flareMax&&a>=site.flareMin;P.flare=1;P.flareHold=.52;P.flareCallout=true;if(P.flareGood){pop('타이밍 성공!',W/2,H*.42-52,'#ff5c8a',21);sfx(760,.14,'triangle',.12,220);buzz(18)}else{pop(a>site.flareMax?'조금 빨라요!':'조금 늦었어요!',W/2,H*.42-52,'#f0a13d',19);sfx(430,.12,'triangle',.1,-80)}}return true}}
   if(P.state==='landed'&&P.landT>.65){next();return true}
   return false;
 }
