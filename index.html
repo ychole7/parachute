@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
-<meta name="game-build" content="v46-soft-touchdown">
-<title>둥실둥실 낙하대 · 부드러운 착지</title>
+<meta name="game-build" content="v47-stage-progression">
+<title>둥실둥실 낙하대 · 스테이지 착지 도전</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
 canvas{display:block;width:100vw;height:100vh;height:100dvh}
@@ -35,11 +35,15 @@ const CHARS=[
 const PARACHUTES=[
   {name:'주황 아이보리 캐노피',desc:'기본 캐노피',control:1,wind:1,fall:1,flare:1,open:1,wing:1,panels:6}
 ];
-const SITES=[
-  {name:'목장 운동장',icon:'🐄',kind:'pasture',x:.52,mapU:.16,mapV:.75,targetW:76,wind:.92,focus:'넓은 울타리 안 표적에 착지'},
-  {name:'강변 부표',icon:'🛟',kind:'buoy',x:.52,mapU:.12,mapV:.57,targetW:54,wind:1.16,moveAmp:.065,moveRate:1.15,focus:'좌우로 움직이는 부표에 착지'},
-  {name:'옥상 착륙장',icon:'🏠',kind:'roof',x:.52,mapU:.75,mapV:.54,targetW:58,wind:1.08,focus:'좁은 옥상 표적에 착지'}
+const STAGE_PLAN=[
+  {name:'목장 운동장',icon:'🐄',kind:'pasture',x:.52,mapU:.16,mapV:.75,targetW:96,wind:.50,focus:'넓은 목장 표적 · 조종과 착지 익히기'},
+  {name:'목장 바깥 공터',icon:'🌼',kind:'pasture',x:.38,mapU:.16,mapV:.75,targetW:96,wind:.62,focus:'옆 공터 표적 · 방향을 조절해요'},
+  {name:'강변 둔치',icon:'🌿',kind:'ground',x:.52,mapU:.12,mapV:.57,targetW:88,wind:.95,focus:'강변 표적 · 옆바람을 읽어요'},
+  {name:'옥상 공터',icon:'🏠',kind:'roof',x:.52,mapU:.75,mapV:.54,targetW:80,wind:.95,focus:'넓은 옥상 공터 · 지면을 보고 착지해요'},
+  {name:'옥상 한쪽 공터',icon:'🏠',kind:'roof',x:.67,mapU:.75,mapV:.54,targetW:68,wind:1.08,focus:'한쪽 공터 표적 · 조종 범위를 조절해요'},
+  {name:'돌풍 부는 옥상',icon:'🏠',kind:'roof',x:.37,mapU:.75,mapV:.54,targetW:60,wind:1.20,gusts:true,weather:'wind',focus:'돌풍 부는 옥상 · 바람과 착지 타이밍을 맞춰요'}
 ];
+function getStageSite(stage){return {...STAGE_PLAN[clamp(stage-1,0,STAGE_PLAN.length-1)]}}
 const WEATHERS=[
   {name:'맑음',icon:'☀',wind:0.9,fall:1,dive:0.96,flare:1,open:0.96,gust:0.72,kind:'clear'},
   {name:'돌풍',icon:'➜',wind:1.3,fall:1.02,dive:1.04,flare:0.94,open:1,gust:1.5,kind:'wind'}
@@ -67,7 +71,7 @@ const DANGER_ALT=(()=>{
 function dangerThreshold(){if(!weather||!gear||!P)return DANGER_ALT;const factor=weather.dive*weather.fall*gear.fall*P.ch.fall*weather.open*gear.open/(Math.max(.5,weather.flare*gear.flare*P.ch.flare));return clamp(Math.round(DANGER_ALT*factor),120,300)}
 
 // ---------- 상태 ----------
-let G={stage:1,jump:0,total:0,phase:'title',routeStars:[0,0,0],routePoints:0};
+let G={stage:1,total:0,phase:'title'};
 let P,plane,target,wind,weather,gear,site,stars=[],clouds=[],parts=[],popups=[];
 let camY=0,t=0;
 const input={down:false,x:0,y:0,startX:0,startY:0,flare:0,left:false,right:false};
@@ -75,11 +79,11 @@ for(let i=0;i<8;i++)clouds.push({x:Math.random()*400,y:Math.random()*800,s:rnd(.
 
 function newJump(){
   const s=G.stage,ch=CHARS[0];
-  gear=PARACHUTES[0];weather=WEATHERS[Math.floor(Math.random()*WEATHERS.length)];site=SITES[G.jump%SITES.length];
+  gear=PARACHUTES[0];site=getStageSite(s);weather=site.weather==='wind'?WEATHERS[1]:WEATHERS[0];
   const dir=Math.random()<.5?1:-1;
-  plane={x:dir>0?W*.12:W*.88,y:PLANE_Y,vx:dir*(150+s*12)};
-  const baseWind=(Math.random()<.5?-1:1)*Math.min(32+s*17,115)*rnd(.75,1.15)*site.wind;
-  const gusts=[{alt:520,dir:Math.random()<.5?-1:1,power:48*weather.gust,width:105,charge:0,mastered:false},{alt:270,dir:Math.random()<.5?-1:1,power:62*weather.gust,width:82,charge:0,mastered:false}];
+  plane={x:dir>0?W*.12:W*.88,y:PLANE_Y,vx:dir*Math.min(240,150+s*8)};
+  const baseWind=(Math.random()<.5?-1:1)*Math.min(14+s*9,100)*rnd(.75,1.15)*site.wind;
+  const gusts=site.gusts?[{alt:520,dir:Math.random()<.5?-1:1,power:48*weather.gust,width:105,charge:0,mastered:false},{alt:270,dir:Math.random()<.5?-1:1,power:62*weather.gust,width:82,charge:0,mastered:false}]:[];
   wind={v:baseWind,current:baseWind,phase:rnd(0,Math.PI*2),active:null,gusts};
   const tw=site.targetW||76;
   const targetX=W*(site.x??.52);target={x:targetX,baseX:targetX,w:tw,vx:0,phase:rnd(0,Math.PI*2),moveAmp:site.moveAmp?W*site.moveAmp:0,moveRate:site.moveRate||0};
@@ -106,20 +110,19 @@ function land(){
   const d=Math.abs(P.x-target.x);
   const soft=s&&P.flareGood&&P.vy<120;
   let acc=0,label;
-  if(!s)label=site.kind==='pasture'?'울타리 밖에 착지!':site.kind==='buoy'?'부표를 놓쳤어요!':site.kind==='roof'?'옥상 밖으로 벗어났어요!':'아이고, 꽈당!';
+  if(!s)label=site.kind==='pasture'?'공터 밖에 착지!':site.kind==='buoy'?'부표를 놓쳤어요!':site.kind==='roof'?'옥상 밖으로 벗어났어요!':'착지 구역을 벗어났어요!';
   else if(d<target.w*.075){acc=100;label='퍼펙트!'}
   else if(d<target.w*.28){acc=60;label='좋아요!'}
   else if(d<target.w*.5){acc=30;label='아슬아슬!'}
-  else label=site.kind==='buoy'?'부표를 놓쳤어요':site.kind==='roof'?'옥상 표적을 벗어났어요':'풀밭 착지';
+  else label=site.kind==='buoy'?'부표를 놓쳤어요':site.kind==='roof'?'옥상 표적을 벗어났어요':'표적에서 벗어났어요';
   const bold=(s&&acc>0&&P.openAlt<BONUS_ALT)?Math.round(clamp((BONUS_ALT-P.openAlt)/Math.max(40,BONUS_ALT-dangerThreshold())*100,0,100)):0;
   const starPts=P.stars*10,windPts=P.gustPts||0;
   const multiplier=s&&P.openAlt!==null&&P.openAlt<BONUS_ALT?1.5:1;
   const missCM=Math.round(d/Math.max(1,W)*3000);
   let bestCM=null,newBest=false;
-  if(s&&acc>0){try{const old=localStorage.getItem('parachute-best-cm');bestCM=old===null?null:Number(old);newBest=bestCM===null||missCM<bestCM;if(newBest){bestCM=missCM;localStorage.setItem('parachute-best-cm',String(bestCM))}}catch(e){bestCM=missCM}}
+  if(s&&acc>0){try{const key=`parachute-best-cm-stage-${G.stage}`,old=localStorage.getItem(key);bestCM=old===null?null:Number(old);newBest=bestCM===null||missCM<bestCM;if(newBest){bestCM=missCM;localStorage.setItem(key,String(bestCM))}}catch(e){bestCM=missCM}}
   const pts=s?Math.round((acc+starPts+windPts+(soft&&acc>0?20:0))*multiplier)+Math.min(bold,100):Math.floor((starPts+windPts)/2);
   const rating=!s?0:(acc===100&&soft?3:acc===100?2:acc>0?1:0);
-  G.routeStars[G.jump%SITES.length]=rating;G.routePoints+=pts;
   P.result={safe:s,soft,rating,softPts:soft&&acc>0?20:0,acc,bold:Math.min(bold,100),starPts,windPts,pts,label,missCM,bestCM,newBest,multiplier,onMat:s&&acc>0};
   P.state='landed';P.vx=0;P.vy=0;P.landT=0;P.impact=clamp((P.touchSpeed-70)/240,0,1);G.total+=pts;
   // 짧고 낮은 접촉음과 발밑 먼지로 지면에 닿은 순간을 먼저 읽히게 한다.
@@ -129,7 +132,7 @@ function land(){
   else if(acc===100){[660,880,1100].forEach((f,i)=>setTimeout(()=>sfx(f,.18,'triangle',.14),i*90));burst(P.x,P.y,'#ffd84d',soft?20:18);buzz(soft?42:32);pop(soft?'사뿐! +20':'정중앙 착지!',W/2,H*.42-52,soft?'#ff8fab':'#ffd84d',22)}
   else{burst(P.x,P.y+10,soft?'#ffe9a8':'#ffffff',soft?16:12);pop(soft?'사뿐! +20':acc>0?'착!':'아슬아슬!',W/2,H*.42-52,soft?'#ff8fab':'#f0b44b',20)}
 }
-function next(){const routeEnd=(G.jump+1)%SITES.length===0;G.jump++;if(routeEnd){G.stage++;G.routeStars=[0,0,0];G.routePoints=0}newJump()}
+function next(){if(G.stage>=STAGE_PLAN.length){G.stage=1;G.total=0}else G.stage++;newJump()}
 
 // ---------- 업데이트 ----------
 function update(dt){
@@ -355,7 +358,7 @@ function drawTarget(){
     const aligned=Math.abs(P.x-target.x)<target.w*.075;
     ctx.beginPath();ctx.ellipse(drop.x,drop.y,14*drop.scale,9*drop.scale,0,0,Math.PI*2);ctx.strokeStyle=aligned?'#ff775e':'#fff';ctx.lineWidth=3;ctx.stroke();
     ctx.beginPath();ctx.moveTo(drop.x-8*drop.scale,drop.y);ctx.lineTo(drop.x+8*drop.scale,drop.y);ctx.moveTo(drop.x,drop.y-8*drop.scale);ctx.lineTo(drop.x,drop.y+8*drop.scale);ctx.stroke();
-    txt(aligned?'표적 정렬!':'점프 예상 지점',drop.x,drop.y+25*drop.scale,11*drop.scale,aligned?'#ff6d75':'#fff','center',false);ctx.restore();
+    txt(aligned?'표적 정렬!':'점프 지점',drop.x,drop.y+25*drop.scale,11*drop.scale,aligned?'#ff6d75':'#fff','center',false);ctx.restore();
   }
   if(P&&P.state==='landed'){
     const q=mapProject(P.x,GROUND-22),p=clamp(P.landT/.42,0,1),col=P.result.acc===100?'#54bd78':P.result.acc>0?'#f0b44b':'#ed6b70';
@@ -364,19 +367,6 @@ function drawTarget(){
     ell(q.x,q.y,5*s,5*s,col,'#fff');
   }
   if(P&&P.state==='landed'&&P.landT<.32){const a=clamp(P.landT/.32,0,1);ctx.save();ctx.globalAlpha=(1-a)*.78;ctx.strokeStyle=P.result.acc>0?'#fff0a8':'#fff';ctx.lineWidth=(3-1.5*a)*s;ctx.beginPath();ctx.ellipse(tp.x,y+3*s,18*s+a*w*.72,6*s+a*19*s,0,0,Math.PI*2);ctx.stroke();ctx.restore()}
-  if(P&&P.state==='chute'){
-    const flight=Math.max(0,(GROUND-22-P.y)/Math.max(P.vy,55));
-    const steer=(input.right?1:0)-(input.left?1:0);
-    const touchSteer=input.down?clamp((input.x-input.startX)/44,-1,1):steer;
-    const drift=(wind.current??wind.v)*1.55*easeOut(P.chute)*weather.wind*site.wind*gear.wind*P.ch.wind,aim=touchSteer*820*gear.control*P.ch.steer+drift;
-    const px=clamp(P.x+aim*flight+(P.vx-aim)*(1-Math.exp(-1.35*flight))/1.35,16,W-16);
-    const expectedTarget=targetFutureX(flight),miss=Math.abs(px-expectedTarget),color=miss<target.w*.14?'#54bd78':miss<target.w*.5?'#f0b44b':'#ed6b70';
-    const pp=mapProject(px,GROUND-22);
-    ctx.save();ctx.setLineDash([4,6]);ctx.lineWidth=2;ctx.strokeStyle=color;ctx.globalAlpha=.82;
-    ctx.beginPath();ctx.moveTo(W/2,H*.42+18);ctx.quadraticCurveTo((W/2+pp.x)/2,H*.68,pp.x,pp.y-5);ctx.stroke();
-    ctx.setLineDash([]);ctx.beginPath();ctx.ellipse(pp.x,pp.y-5,10*pp.scale,5*pp.scale,0,0,Math.PI*2);ctx.stroke();
-    txt('예상 착지',pp.x,pp.y-25*pp.scale,11*pp.scale,color,'center',false);if(alt(P.y)<260)txt(`표적까지 ${Math.round(miss/Math.max(1,W)*3000)}cm`,W/2,H*.67,14,color);ctx.restore();
-  }
 }
 
 function drawWeatherFX(){
@@ -390,19 +380,20 @@ function drawHUD(){
   if(G.phase!=='play'||P?.state==='landed')return;
   const pill=(x,y,w,h,fill='rgba(255,250,238,.94)')=>{rr(x,y,w,h,h/2);ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle='rgba(124,91,67,.24)';ctx.lineWidth=1.4;ctx.stroke()};
   pill(W*.20,13,W*.60,36);
-  const stage=P.state==='plane'?0:P.state==='fall'?1:P.state==='chute'?2:3;
-  const labels=['표적과 비행기 정렬','뛰어내릴 순간 선택','착지선을 맞춰요','착지 기록'];
+  const phase=P.state==='plane'?0:P.state==='fall'?1:P.state==='chute'?2:3;
+  const labels=['표적과 비행기 정렬','뛰어내릴 순간 선택','바람을 읽고 조종해요','착지 기록'];
   const colors=['#bf7149','#668c77','#e47a73','#e66d91'];
-  txt(labels[stage],W/2,31,14,colors[stage],'center',false);
+  txt(`스테이지 ${G.stage} · ${labels[phase]}`,W/2,31,13,colors[phase],'center',false);
   const px=W*.27,py=57,pw=W*.46;
   rr(px,py,pw,6,3);ctx.fillStyle='rgba(255,255,255,.75)';ctx.fill();
   const progress=P.state==='plane' ? 0 : P.state==='fall' ? .24 : P.state==='chute' ?clamp(.42+.58*(1-alt(P.y)/MAXALT),.42,.97):1;
   rr(px,py,Math.max(6,pw*progress),6,3);ctx.fillStyle='#ffc75e';ctx.fill();
   if(P.state==='chute'&&wind){
     const direction=Math.sign(wind.current||wind.v),arrow=direction<0?'←':'→';
-    pill(14,H*.16,110,33,'rgba(255,250,238,.91)');
-    txt(weather?.kind==='wind'?'돌풍':'바람',47,H*.177,12,'#755b49','center',false);
-    txt(arrow,93,H*.177,19,'#e68c48','center',false);
+    const strength=Math.abs(wind.current||wind.v),level=strength<28?'약':strength<62?'보통':'강';
+    pill(14,H*.16,142,33,'rgba(255,250,238,.91)');
+    txt(weather?.kind==='wind'?'돌풍':'바람',43,H*.177,11,'#755b49','center',false);
+    txt(arrow,83,H*.177,18,'#e68c48','center',false);txt(level,119,H*.177,10,'#755b49','center',false);
   }
   if(P.state==='fall'||P.state==='chute'){
     const x=W-20,y0=112,y1=Math.max(250,H*.72),height=y1-y0;
@@ -440,8 +431,7 @@ function drawHUD(){
 function drawButton(){
   if(P.state==='plane'){
     txt('표적이 곰 아래로 올 때 톡!',W/2,H*.76,16,'#e76f8b');
-    const siteHint=site.kind==='pasture'?'넓은 목장 표적 · 울타리 안을 노려요':site.kind==='buoy'?'움직이는 부표 · 물결을 보고 맞춰요':'좁은 옥상 표적 · 바람을 조심해요';
-    txt(siteHint,W/2,H*.80,11,'#684f42');return;
+    txt(site.focus,W/2,H*.80,11,'#684f42');return;
   }
   if(P.state==='fall'){
     const bx=W/2,by=H*.83,r=Math.min(58,W*.15),pulse=1+Math.sin(t*5)*.035;
@@ -458,16 +448,11 @@ function drawButton(){
     const sx=input.down?clamp((input.x-input.startX)/44,-1,1):0;
     ell(cx+sx*24,cy,19,19,input.down?'#fff0c9':'rgba(255,255,255,.9)','#6d5a4a');
     txt('좌우 조종',cx,cy+56,11,'#fff','center',true);
-    const flight=Math.max(0,(GROUND-22-P.y)/Math.max(P.vy,55));
-    const steer=(input.right?1:0)-(input.left?1:0),touchSteer=input.down?clamp((input.x-input.startX)/44,-1,1):steer;
-    const drift=(wind.current??wind.v)*1.55*easeOut(P.chute)*weather.wind*site.wind*gear.wind*P.ch.wind;
-    const aim=touchSteer*820*gear.control*P.ch.steer+drift;
-    const predictedX=clamp(P.x+aim*flight+(P.vx-aim)*(1-Math.exp(-1.35*flight))/1.35,16,W-16),dx=predictedX-targetFutureX(flight);
     let hint;
     if(flareWindow)hint=P.flareUsed?(P.flareGood?'착지 타이밍 성공! 표적을 향해 조종':'표적을 향해 계속 조종'):'초록 구간에 오른쪽 착지 버튼을 눌러요';
-    else if(a<150)hint='표적선을 맞추며 착지 타이밍을 기다려요';
-    else if(Math.abs(dx)<target.w*.14)hint='예상 착지선이 표적 중심에 가까워요!';
-    else hint=dx<0?'착지 예상이 왼쪽 · 오른쪽으로 조종':'착지 예상이 오른쪽 · 왼쪽으로 조종';
+    else if(a<150)hint='표적을 보며 마지막 방향을 조절해요';
+    else if(Math.abs(wind.current||wind.v)>62)hint=(wind.current||wind.v)>0?'바람이 오른쪽으로 밀어요 · 왼쪽으로 보정':'바람이 왼쪽으로 밀어요 · 오른쪽으로 보정';
+    else hint='표적을 향해 좌우로 조종해요';
     const baseY=H*.88;rr(W*.28,baseY-19,W*.44,38,19);ctx.fillStyle='rgba(255,250,238,.94)';ctx.fill();ctx.strokeStyle='rgba(124,91,67,.28)';ctx.lineWidth=1.2;ctx.stroke();txt(hint,W*.50,baseY,12.5,flareWindow?'#d94f79':'#684f42','center',false);
     if(flareWindow){
       const bx=W*.84,by=H*.75,r=Math.min(43,W*.115),sweet=a<=68&&a>=24,pulse=1+Math.sin(t*7)*.045;
@@ -489,10 +474,9 @@ function drawCard(){
   txt(`중심에서 ${r.missCM}cm`,W/2,y+43,15,'#806b5c','center',false);
   txt(r.bestCM!==null?`최고 기록 ${r.bestCM}cm · ${r.soft?'부드러운 착지':r.safe?'충격이 컸어요':'다시 도전!'}`:(r.soft?'부드러운 착지':r.safe?'충격이 컸어요':'다시 도전!'),W/2,y+62,10.5,'#a17e5b','center',false);
   for(let i=0;i<3;i++){ctx.save();ctx.translate(W/2+(i-1)*32,y+86);drawStar(0,0,12,0);if(i>=r.rating){ctx.globalAlpha*=.28;ctx.fillStyle='#79685c';ctx.beginPath();ctx.arc(0,0,12,0,Math.PI*2);ctx.fill()}ctx.restore()}
-  const routeStars=G.routeStars.reduce((sum,v)=>sum+v,0),routeEnd=G.jump%SITES.length===SITES.length-1;
-  const routeLine=routeEnd?`코스 ${G.routePoints}점 · 별 ${routeStars}/9`:`이번 ${r.pts}점 · 코스 별 ${routeStars}/9`;
-  txt(routeLine,W/2,y+108,10,'#9b7041','center',false);
-  const cta=routeEnd?'다음 코스 시작  ›':`${SITES[(G.jump+1)%SITES.length].name} 이동  ›`;
+  const allStagesClear=G.stage>=STAGE_PLAN.length;
+  txt(allStagesClear?`${STAGE_PLAN.length}단계 완주 · 총 ${G.total}점`:`스테이지 ${G.stage} · ${r.pts}점 획득`,W/2,y+108,10,'#9b7041','center',false);
+  const cta=allStagesClear?'처음부터 다시 하기  ›':'다음 스테이지 도전  ›';
   rr(W/2-78,y+121,156,26,13);ctx.fillStyle='#f27d75';ctx.fill();txt(cta,W/2,y+134,11,'#fff','center',false);
   ctx.restore();
 }
@@ -504,7 +488,7 @@ function drawTitle(){
   drawPlane(W*.73,H*.34,1,.48);drawFreefallBear(W*.31,H*.48,-.08,.40);
   rr(W*.10,H*.065,W*.80,H*.19,28);ctx.fillStyle='rgba(255,250,238,.95)';ctx.fill();ctx.strokeStyle='rgba(132,93,63,.30)';ctx.lineWidth=2;ctx.stroke();
   txt('둥실둥실',W/2,H*.12,23,'#bf7149','center',false);txt('낙하대',W/2,H*.195,34,'#74482f','center',false);
-  txt('세 곳의 표적에 차례로 착지!',W/2,H*.64,15,'#624b3e');
+  txt('스테이지마다 새로운 곳에 착지!',W/2,H*.64,15,'#624b3e');
   rr(W*.18,H*.725,W*.64,60,25);ctx.fillStyle='#f27d75';ctx.fill();ctx.strokeStyle='#a75049';ctx.lineWidth=2;ctx.stroke();
   txt('탭해서 출발!',W/2,H*.725+30,20,'#fff','center',false);
   rr(W*.15,H*.825,W*.70,45,20);ctx.fillStyle='rgba(255,250,238,.88)';ctx.fill();
@@ -569,7 +553,7 @@ function draw(){
 }
 // ---------- 입력 ----------
 function action(x,y){
-  if(G.phase==='title'){G.stage=1;G.jump=0;G.total=0;G.routeStars=[0,0,0];G.routePoints=0;newJump();return true}
+  if(G.phase==='title'){G.stage=1;G.total=0;newJump();return true}
   if(P.state==='plane'){jump();return true}
   if(P.state==='fall'&&(x==null||Math.hypot(x-W/2,y-H*.83)<Math.min(76,W*.2))){openChute();return true}
   if(P.state==='chute'){const a=alt(P.y),bx=W*.84,by=H*.75,r=Math.min(52,W*.13);if(a<=90&&a>12&&Math.hypot(x-bx,y-by)<r){if(!P.flareUsed){P.flareUsed=true;P.flareAt=a;P.flareGood=a<=68&&a>=24;P.flare=1;P.flareHold=.52;P.flareCallout=true;if(P.flareGood){pop('타이밍 성공!',W/2,H*.42-52,'#ff5c8a',21);sfx(760,.14,'triangle',.12,220);buzz(18)}else{pop(a>68?'조금 빨라요!':'조금 늦었어요!',W/2,H*.42-52,'#f0a13d',19);sfx(430,.12,'triangle',.1,-80)}}return true}}
